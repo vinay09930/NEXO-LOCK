@@ -4,10 +4,19 @@
 
 ```text
 D:\NEXO-LOCK\
-├── builds\                         Single release APK and checksum
-│   ├── NEXO_LOCK_V1.2.0_RELEASE.apk
-│   └── NEXO_LOCK_V1.2.0_SHA256.txt
-├── documantion\                    This documentation set
+├── README.md                       Landing page, download link, screenshots
+├── CHANGELOG.md
+├── DECOY_POLICY.md
+├── FEATURES.md
+├── INSTALL.md
+├── KNOWN_LIMITATIONS.md
+├── PERMISSION_SETUP.md
+├── PRIVACY.md
+├── PROJECT_STRUCTURE.md
+├── SECURITY.md
+├── TEST_REPORT.md
+├── TROUBLESHOOTING.md
+├── V1.2.0_*.md                     Release-specific reports
 ├── reference\                      Logo source asset only
 │   └── logo_source.jpg
 ├── screenshots\v1.2.0\             Runtime screenshots
@@ -25,7 +34,10 @@ D:\NEXO-LOCK\
     └── local.properties            Local SDK path (not portable)
 ```
 
-The workspace is **not a Git repository**. Changes are not tracked by commits.
+The release APK and checksum are distributed through GitHub Releases and are not
+stored in the repository. A local `builds/` folder is ignored by Git.
+
+The workspace is a Git repository. The `main` branch tracks `origin/main`.
 
 ## Android source packages
 

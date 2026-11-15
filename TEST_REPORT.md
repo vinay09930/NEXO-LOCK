@@ -128,7 +128,7 @@ Screenshots and detailed observations are in
 Release APK (the only delivered build):
 
 ```text
-File:    builds/NEXO_LOCK_V1.2.0_RELEASE.apk
+File:    NEXO_LOCK_V1.2.0_RELEASE.apk (GitHub Release asset)
 Size:    13,905,878 bytes
 SHA-256: 80BA3BEA9F3111E410C3B19B29C44370A2C1E0C1BC4294A607971DF5E6EB3D2D
 Cert:    fe1d89ccfac4fb031cc3e13d79d311f88421afe69b9bdc69fecff7aedda1978c

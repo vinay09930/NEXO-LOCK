@@ -1,3 +1,6 @@
+# Release staging folder (APK is distributed via GitHub Releases)
+builds/
+
 # Build outputs and local machine state
 source/.gradle/
 source/.kotlin/

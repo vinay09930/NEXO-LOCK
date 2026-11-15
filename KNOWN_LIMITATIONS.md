@@ -31,8 +31,8 @@ the delivery, not an afterthought.
 - **No reproducible-build guarantee.** Build timestamps and toolchain versions can
   change the APK bytes.
 - **No CI pipeline.** Verification is manual and local.
-- **No Git history.** The workspace is not a Git repository; there is no commit
-  provenance for the source tree.
+- **Manual release upload.** The APK is built locally and attached to a GitHub
+  Release manually; no automated provenance or attestation is provided.
 
 ## Product limitations
 

@@ -1,12 +1,20 @@
 # Install and Upgrade Guide
 
-## Choose an APK
+## Download the APK
 
-Exactly one build is delivered:
+Download the latest release:
+
+```text
+https://github.com/vinay09930/NEXO-LOCK/releases/latest/download/NEXO_LOCK_V1.2.0_RELEASE.apk
+```
+
+Exactly one build is delivered as a GitHub Release asset:
 
 | File | Size | Use |
 | --- | --- | --- |
-| `builds/NEXO_LOCK_V1.2.0_RELEASE.apk` | 13,905,878 bytes | Normal installation; R8 optimization disabled |
+| `NEXO_LOCK_V1.2.0_RELEASE.apk` | 13,905,878 bytes | Normal installation; R8 optimization disabled |
+
+The APK is not stored in the source tree.
 
 It is signed with the Android debug certificate:
 
