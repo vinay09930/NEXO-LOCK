@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NEXO LOCK</string>
+    <string name="accessibility_service_label">NEXO LOCK app detection</string>
+    <string name="accessibility_service_description">NEXO LOCK watches only which app comes to the foreground so it can show a lock screen for the apps you selected. It does not read screen content, text, passwords or window contents, and it does not capture hardware keys.</string>
+    <string name="notification_channel_protection">Protection status</string>
+    <string name="notification_title">NEXO LOCK protection</string>
+</resources>

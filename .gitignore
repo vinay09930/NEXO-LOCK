@@ -1,0 +1,12 @@
+# Build outputs and local machine state
+source/.gradle/
+source/.kotlin/
+source/build/
+source/app/build/
+source/local.properties
+source/.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db

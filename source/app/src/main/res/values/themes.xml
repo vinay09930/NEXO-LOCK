@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.NEXOLock" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/nexo_ink</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/nexo_mint</item>
+    </style>
+
+    <style name="Theme.NEXOLock.Lock" parent="Theme.NEXOLock">
+        <item name="android:windowBackground">@color/nexo_ink</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+</resources>

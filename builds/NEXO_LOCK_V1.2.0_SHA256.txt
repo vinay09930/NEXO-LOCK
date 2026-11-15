@@ -1,0 +1,11 @@
+NEXO LOCK V1.2.0 SHA-256
+
+Release APK
+File: NEXO_LOCK_V1.2.0_RELEASE.apk
+Size: 13905878 bytes
+SHA-256: 80BA3BEA9F3111E410C3B19B29C44370A2C1E0C1BC4294A607971DF5E6EB3D2D
+
+This is the only delivered build. All previous-version APKs, debug APKs,
+reference copies, and old checksum files were removed.
+
+Generated: 2026-11-15
