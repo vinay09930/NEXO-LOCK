@@ -126,6 +126,9 @@ class AuthenticationSession(
 
     private val verified = LinkedHashSet<AuthFactor>()
 
+    /** Factors that were deliberately bypassed without being verified. */
+    private val skipped = LinkedHashSet<AuthFactor>()
+
     val terminal: Boolean
         get() = state in TERMINAL_STATES
 
@@ -196,6 +199,20 @@ class AuthenticationSession(
         return advanceToNextStage(now)
     }
 
+    /**
+     * The biometric stage could not be completed (cancelled, unavailable or a
+     * failed read). The factor is NOT recorded as verified: the session simply
+     * moves on to the remaining configured factors, which always end at the
+     * mandatory master PIN. Self-Protection uses this so a missing or broken
+     * sensor cannot lock the owner out of their own app; a protected app's lock
+     * screen keeps the stricter terminal policy below.
+     */
+    fun skipBiometric(now: Long): Result {
+        if (state != AuthSessionState.BIOMETRIC_AUTHENTICATION) return Result.InvalidTransition
+        skipped += AuthFactor.BIOMETRIC
+        return advanceToNextStage(now)
+    }
+
     /** Per policy, a failed biometric result is terminal. */
     fun biometricFailed(): Result {
         if (state != AuthSessionState.BIOMETRIC_AUTHENTICATION) return Result.InvalidTransition
@@ -253,7 +270,12 @@ class AuthenticationSession(
         }
     }
 
-    /** Recovery credentials are an alternative to the master PIN inside the PIN stage. */
+    /**
+     * Recovery credentials are an alternative to the master PIN inside the PIN
+     * stage. This only advances the state machine: the caller must have already
+     * verified every configured recovery factor through the credential
+     * repository and checked [AuthPolicy.recoverySatisfied] first.
+     */
     fun authorizeByRecovery(): Boolean {
         if (state != AuthSessionState.MASTER_PIN) return false
         state = AuthSessionState.AUTHORIZED
@@ -294,7 +316,10 @@ class AuthenticationSession(
     // ------------------------------------------------------------------ internals
 
     private fun advanceToNextStage(now: Long): Result {
-        if (biometricRequired && AuthFactor.BIOMETRIC !in verified) {
+        if (biometricRequired &&
+            AuthFactor.BIOMETRIC !in verified &&
+            AuthFactor.BIOMETRIC !in skipped
+        ) {
             state = AuthSessionState.BIOMETRIC_AUTHENTICATION
             // Android owns the biometric interaction; no NEXO timer.
             startStage(now, 0L)

@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +52,8 @@ import com.vinay.nexolock.ui.screens.SettingsCategoryScreen
 import com.vinay.nexolock.ui.screens.SettingsScreen
 import com.vinay.nexolock.ui.screens.SetupScreen
 import com.vinay.nexolock.ui.screens.SplashScreen
+import com.vinay.nexolock.ui.selflock.SelfLockScreen
+import com.vinay.nexolock.ui.selflock.SelfLockViewModel
 import com.vinay.nexolock.ui.theme.LocalNexoBottomPadding
 import com.vinay.nexolock.ui.theme.NexoSignatureTheme
 import com.vinay.nexolock.ui.theme.NexoSpace
@@ -126,7 +129,7 @@ private val FloatingNavItems = listOf(
 )
 
 @Composable
-fun NexoRoot(vm: NexoViewModel) {
+fun NexoRoot(vm: NexoViewModel, selfLock: SelfLockViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
     // The management UI is always dark by design. The legacy ThemeMode value
     // is still persisted because the frozen lock/decoy surface reads it.
@@ -139,6 +142,53 @@ fun NexoRoot(vm: NexoViewModel) {
 
         if (state.loading || !splashDone) {
             SplashScreen()
+            return@NexoSignatureTheme
+        }
+
+        // ---------------------------------------------------------------- Self-Protection
+        // The gate replaces the whole navigation graph, so no protected route
+        // is composed, no deep link can reach one, and Back cannot pop into the
+        // dashboard. It is shown whenever App Protection is on and the current
+        // process has not verified itself, or a sensitive change asked for a
+        // fresh verification.
+        val security = state.security
+        val gateVisible = security.selfProtectionRequired &&
+            (!security.authorized || security.stepUp != null)
+
+        if (gateVisible) {
+            val lockState by selfLock.state.collectAsStateWithLifecycle()
+            val activity = LocalContext.current.findActivity()
+            LaunchedEffect(Unit) {
+                // Start the stage windows only after the first frame, exactly as
+                // the protected-app lock screen does.
+                withFrameNanos { }
+                selfLock.onSurfaceVisible()
+                selfLock.begin()
+            }
+            // No endSession() on dispose: a recomposition, rotation or a
+            // lifecycle bounce must not throw away a session that is already in
+            // progress (that is what made the gate ask again from the start).
+            // The session is rebuilt on the next entry and ended on exit.
+            SelfLockScreen(
+                state = lockState,
+                operationLabel = security.stepUp?.label,
+                onDigit = selfLock::onDigit,
+                onBackspace = selfLock::onBackspace,
+                onBiometric = selfLock::manualBiometric,
+                onBiometricSucceeded = selfLock::onBiometricSucceeded,
+                onBiometricError = selfLock::onBiometricError,
+                onRecovery = selfLock::openRecovery,
+                onCancelRecovery = selfLock::closeRecovery,
+                verifyRecoveryPin = selfLock::verifyRecoveryPin,
+                verifyRecoveryPattern = selfLock::verifyRecoveryPattern,
+                onRecoverySuccess = selfLock::onRecoverySuccess,
+                onResetGesture = selfLock::resetGesture,
+                onRetry = selfLock::retry,
+                onExit = {
+                    selfLock.endSession()
+                    activity?.finish()
+                },
+            )
             return@NexoSignatureTheme
         }
 

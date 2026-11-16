@@ -37,18 +37,24 @@ Three source files are pinned byte-for-byte by `DecoyIntegrityTest`:
 | File | SHA-256 |
 | --- | --- |
 | `ui/lock/LockScreen.kt` | `AC595425F04490AC127B12A28FDA140EF116F4319DB2E5B0DB76CD64F2B374B5` |
-| `ui/lock/LockViewModel.kt` | `0F0339C61A3373DF63368DE8BEB20E6AF8F24AE05004238DADDD03D38DB25194` |
-| `protection/LockActivity.kt` | `C4E71A5CAE29AE03E7A9FB05CC54207D59D596F192C791A0A95F15A890B5B759` |
+| `ui/lock/LockViewModel.kt` | `70C5AFEAACE78B29DA7C7C8E9E5593F2633F725D7B3E4E1146DC594F3EB0C380` |
+| `protection/LockActivity.kt` | `5C568E94158C334B7C58ADA5FEEF17680371BAA9E441B4C422E0548E7269BF5E` |
 
 The test fails if any byte changes. This is intentional: it prevents a UI rebuild
 or vault change from silently altering the decoy.
+
+Build 14 re-froze `LockViewModel.kt` and `LockActivity.kt` for two security-only
+reasons: recovery completion is now bound to factors independently verified by
+the repository, and a corrupt persisted PIN length is clamped. `LockActivity.kt`
+also received an annotation on its existing key-event override for lint. The
+decoy visuals, text, layout, navigation, and timings did not change.
 
 ## Adjacent files
 
 These files participate in the lock/decoy experience but are **not** hash-pinned
 by the test. Treat changes here as security-sensitive and review them manually:
 
-| File | SHA-256 (V1.2.0) |
+| File | SHA-256 (V1.2.0 build 14) |
 | --- | --- |
 | `ui/lock/RecoveryFlow.kt` | `C76C4426209D1FDCC9C0DFA94BFC1C8669FBB69B80578EF427693477B319E35F` |
 | `ui/components/NexoComponents.kt` | `60AFD43AB92945114D284D95A3818B32EEAD1024034C5C2875DAD0B62673E125` |

@@ -198,6 +198,12 @@ private fun ProtectionCategory(
         )
     }
     SigFooterNote(
+        "Self-Protection is automatic while this is on: opening NEXO LOCK requires your " +
+            "configured factors, and turning protection off asks you to verify again. " +
+            "Android cannot prevent uninstalling, force-stopping, clearing app data, or a " +
+            "rooted/privileged system from changing this app's storage.",
+    )
+    SigFooterNote(
         "Display over other apps and at least one detection method are required. " +
             "Their current state is available in Permissions.",
     )

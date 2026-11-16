@@ -369,7 +369,7 @@ class NexoPreferences(context: Context) {
     }
 
     companion object {
-        /** Spec steps 1..10: 1 is the welcome screen, 2..10 live in SetupScreen. */
+        /** First-run setup has two steps: volume pattern (1) and master PIN (2). */
         const val SETUP_STEPS = 2
     }
 }

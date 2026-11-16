@@ -92,6 +92,11 @@ enum class LogType(
     // --- V5 monitoring lifecycle ---
     MONITORING_CONNECTED("App-switch monitoring connected", LogSeverity.INFO, LogGroup.SYSTEM),
     MONITORING_INTERRUPTED("App-switch monitoring interrupted", LogSeverity.WARNING, LogGroup.SYSTEM),
+    // --- V1.3: Self-Protection ---
+    SELF_PROTECTION_GRANTED("Self-Protection verified", LogSeverity.SUCCESS, LogGroup.UNLOCKS),
+    SELF_PROTECTION_LOCKED("Self-Protection locked", LogSeverity.INFO, LogGroup.SYSTEM),
+    SENSITIVE_CHANGE_BLOCKED("Unauthenticated change blocked", LogSeverity.WARNING, LogGroup.FAILURES),
+    SENSITIVE_CHANGE_FAILED("Sensitive change failed", LogSeverity.DANGER, LogGroup.FAILURES),
 }
 
 data class LogEntry(

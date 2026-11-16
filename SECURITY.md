@@ -1,5 +1,28 @@
 # Security Model
 
+## Supported versions
+
+| Version | Supported |
+| --- | --- |
+| 1.2.x | Yes, current release line |
+| Older versions | No; upgrade to the latest release |
+
+Only the latest published APK is maintained. Because the current build is
+debug-signed, a future production-signed release will require an uninstall and
+will delete app data; that migration must be documented before it happens.
+
+## Reporting a vulnerability
+
+Do not open a public issue for a security problem. Use GitHub's private
+vulnerability reporting:
+
+<https://github.com/vinay09930/NEXO-LOCK/security/advisories/new>
+
+Include the affected version, device/Android version, reproduction steps, and
+impact. Do not include real vault contents, PINs, patterns, or signing secrets.
+There is no paid bounty program. Reports are reviewed on a best-effort basis, and
+the reporter will be credited unless they ask to remain anonymous.
+
 ## Design principles
 
 - **Local only.** No account, server, cloud sync, telemetry, or internet
@@ -45,7 +68,13 @@ Each family has an independent verifier and failure budget:
 - Personal Vault PIN;
 - Intruder Vault PIN.
 
-Vault PINs must not match the main PIN, recovery PIN, or the other vault PIN.
+Vault PINs are not compared with other credentials. Rejecting a vault PIN because
+it happens to match the main, recovery, or other vault PIN would turn vault
+creation into an unthrottled credential oracle: an attacker with UI access could
+test candidate secrets without consuming the protected family's lockout budget.
+The vaults remain cryptographically independent instead: each has its own
+verifier, failure budget, Keystore alias, AAD domain, and directory, so knowing a
+PIN for one family grants nothing to another.
 
 ## Encryption at rest
 
@@ -129,9 +158,38 @@ decoy → biometric → volume pattern → master PIN
   restarted by input.
 - Decoy, pattern, and PIN expiry are terminal.
 - Biometric success advances; failure or cancellation denies.
-- Strict mode, when enabled in the persisted configuration, requires the PIN
-  after biometric or pattern success.
+- The master PIN is always the final gate, regardless of which optional factors
+  are configured. A legacy `strictMode` value is still persisted for schema
+  compatibility but is not read by the V1.2.0 lock flow.
 - Recovery starts with the recovery PIN, then the recovery pattern if configured.
+
+## Self-Protection
+
+Self-Protection guards NEXO LOCK's own management interface. It is enabled
+exactly while App Protection is enabled; there is no independent toggle.
+
+Sensitive operations (turning protection off, changing protected apps,
+authentication, recovery, security settings, or protection rules) run through a
+single authorization checkpoint:
+
+- The checkpoint reads the persisted protection requirement before deciding.
+- A step-up request opens the same fixed authentication session used for app
+  unlocking, with its own deadlines and lockout budgets.
+- A successful step-up grants a short-lived authorization bound to a specific
+  request ID. The pending change records that ID and the grant generation at
+  request time.
+- A denied, expired, superseded, cancelled, or revoked gate clears the pending
+  change. A change applies only after a newer successful grant.
+- Immediately before a sensitive write, the checkpoint re-reads the persisted
+  requirement and re-evaluates the gate under the same lock used for revocation.
+  A protection transition that arrives in between cannot authorize a stale write.
+- Turning App Protection off revokes Self-Protection; the configuration observer
+  also revokes on an on→off transition.
+- If the requirement cannot be read, the change is refused.
+
+The gate applies `FLAG_SECURE` while credential entry is visible and replaces the
+navigation graph, so Back and deep links cannot reach a protected route. Leaving
+the app for 30 seconds or more requires a new verification.
 
 ## Lockout
 
@@ -189,9 +247,13 @@ so the next failure escalates.
 - Offline inspection of app-private storage (index and files are encrypted).
 - Chunk reordering or cross-vault file substitution (AAD binding).
 - Silent vault corruption (authentication failure and SHA-256 verification).
-- Credential reuse across vaults (explicit duplicate rejection).
+- Cross-vault credential reuse (independent verifiers, Keystore aliases, AAD, and
+  directories; a PIN for one vault cannot decrypt another).
 - Brute-force guessing at the UI (progressive lockout).
-- Screenshot leakage of vault/viewer routes (`FLAG_SECURE`).
+- Sensitive settings changes without a fresh self-authentication (Self-Protection
+  step-up binding and pre-write re-check).
+- Screenshot leakage of vault/viewer routes and the self-lock gate
+  (`FLAG_SECURE`).
 
 ### Not protected against
 

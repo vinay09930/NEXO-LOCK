@@ -23,8 +23,11 @@ object LockoutPolicy {
 
     fun describe(delayMs: Long): String = when {
         delayMs <= 0L -> ""
-        delayMs < 60_000L -> "${(delayMs + 999) / 1000} seconds"
-        delayMs < 3_600_000L -> "${(delayMs + 59_999) / 60_000} minutes"
-        else -> "${(delayMs + 3_599_999) / 3_600_000} hours"
+        delayMs < 60_000L -> unit((delayMs + 999) / 1000, "second")
+        delayMs < 3_600_000L -> unit((delayMs + 59_999) / 60_000, "minute")
+        else -> unit((delayMs + 3_599_999) / 3_600_000, "hour")
     }
+
+    private fun unit(value: Long, singular: String): String =
+        "$value $singular" + if (value == 1L) "" else "s"
 }

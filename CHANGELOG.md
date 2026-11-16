@@ -4,6 +4,33 @@ This changelog is reconstructed from the current source and its comments. Older
 release notes were not present in the workspace when this documentation set was
 recreated.
 
+## 1.2.0 - versionCode 14
+
+**Self-Protection and security hardening.**
+
+- Added **Self-Protection**: while App Protection is on, sensitive NEXO LOCK
+  settings changes require a fresh self-authentication gate. The gate reuses the
+  existing decoy, biometric, volume-pattern, master-PIN, and recovery flows and
+  replaces the management UI until it succeeds or is denied.
+- Self-Protection is derived from App Protection, not a separate toggle. Turning
+  App Protection off is the only way to disable it.
+- Guarded changes are bound to the exact step-up grant that authorized them. A
+  denied, expired, superseded, or revoked authentication cannot complete a
+  pending change.
+- Sensitive writes re-check the persisted protection requirement and the
+  revocation epoch immediately before committing.
+- Removed the unused vault-PIN comparison path. Vault PINs are no longer compared
+  with the main, recovery, or other vault PIN, so vault creation cannot be used as
+  an unthrottled credential oracle.
+- Hardened vault deletion, PIN creation/change, atomic index updates, camera
+  capture completion, and intruder-capture serialization.
+- Migrated image EXIF handling to `androidx.exifinterface`.
+- Removed unreachable service actions and unused resources.
+- Added Self-Protection gate/policy and lockout-policy unit tests.
+- Bumped `versionCode` to `14`; `versionName` remains `1.2.0`.
+- Delivered as the separate GitHub Release `v1.2.0-build14`. The original
+  `v1.2.0` code-13 release is unchanged.
+
 ## 1.2.0 - versionCode 13
 
 **Release consolidation.**

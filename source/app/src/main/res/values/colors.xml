@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="nexo_ink">#070A0F</color>
-    <color name="nexo_surface">#11161F</color>
     <color name="nexo_mint">#37E0A2</color>
-    <color name="nexo_white">#F4F7FB</color>
     <color name="ic_launcher_background">#000E27</color>
 </resources>

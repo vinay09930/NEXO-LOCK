@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
@@ -43,6 +44,7 @@ import java.util.Locale
  * Video playback through Media3 ExoPlayer. The media source is the verified
  * decrypted preview in app-private cache; nothing is exposed to other apps.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 internal fun VideoViewer(path: File, displayName: String) {
     val context = LocalContext.current

@@ -16,7 +16,6 @@ import com.vinay.nexolock.data.NexoPreferences
 import com.vinay.nexolock.data.SecurityLogRepository
 import com.vinay.nexolock.domain.AuthPolicy
 import com.vinay.nexolock.domain.AuthenticationService
-import com.vinay.nexolock.domain.CredentialKind
 import com.vinay.nexolock.domain.LockoutPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -101,8 +100,12 @@ class VaultManager(
 
     suspend fun createPin(kind: VaultKind, pin: String): String? {
         if (!AuthPolicy.validPin(pin)) return "Use 4 to 8 digits."
-        val duplicate = usedElsewhere(kind, pin)
-        if (duplicate != null) return "This PIN is already used by $duplicate."
+        // Never reset an existing vault credential from the create path. The
+        // owner must authenticate through changePin() instead, so a stale or
+        // malicious UI route cannot replace a vault PIN without the old one.
+        if (credentials.exists(kind.credentialKind)) {
+            return "${kind.title} already has a PIN. Unlock it to change the PIN."
+        }
         return runCatching {
             credentials.store(kind.credentialKind, pin)
             if (kind == VaultKind.PERSONAL) {
@@ -110,7 +113,8 @@ class VaultManager(
             } else {
                 prefs.setIntruderVaultPinLength(pin.length)
             }
-            stores.getValue(kind).write(emptyList())
+            val store = stores.getValue(kind)
+            if (!store.exists()) store.write(emptyList())
             logs.log(
                 if (kind == VaultKind.PERSONAL) LogType.VAULT_CREATED else LogType.INTRUDER_VAULT_CREATED,
                 "${kind.title} credential configured",
@@ -132,8 +136,7 @@ class VaultManager(
                 "Current vault PIN is incorrect. ${current.attemptsUntilLockout} attempts left."
             }
         }
-        val duplicate = usedElsewhere(kind, newPin)
-        if (duplicate != null) return "This PIN is already used by $duplicate."
+        if (newPin == currentPin) return "Choose a PIN that differs from the current one."
         return runCatching {
             credentials.store(kind.credentialKind, newPin)
             if (kind == VaultKind.PERSONAL) {
@@ -147,21 +150,6 @@ class VaultManager(
             )
             null
         }.getOrElse { "The new vault PIN could not be saved." }
-    }
-
-    private suspend fun usedElsewhere(kind: VaultKind, pin: String): String? {
-        val main = CredentialKind.MAIN_PIN
-        if (credentials.exists(main) && credentials.verify(main, pin)) return "the main PIN"
-        val recovery = CredentialKind.RECOVERY_PIN
-        if (credentials.exists(recovery) && credentials.verify(recovery, pin)) return "the recovery PIN"
-        VaultKind.entries.filter { it != kind }.forEach { other ->
-            if (credentials.exists(other.credentialKind) &&
-                credentials.verify(other.credentialKind, pin)
-            ) {
-                return "the ${other.title}"
-            }
-        }
-        return null
     }
 
     // ------------------------------------------------------------------ session
@@ -249,7 +237,6 @@ class VaultManager(
         if (title.isBlank() && body.isBlank()) return "Write a title or some text first."
         return runCatching {
             val store = stores.getValue(kind)
-            val snapshot = store.read()
             val entry = VaultEntry(
                 id = UUID.randomUUID().toString(),
                 type = VaultEntryType.NOTE,
@@ -257,7 +244,7 @@ class VaultManager(
                 body = body,
                 createdAt = System.currentTimeMillis(),
             )
-            store.write(snapshot.entries + entry)
+            store.updateEntries { it + entry }
             logs.log(
                 if (kind == VaultKind.PERSONAL) LogType.VAULT_ENTRY_ADDED else LogType.INTRUDER_ENTRY_ADDED,
                 "Encrypted entry added to ${kind.title}",
@@ -320,10 +307,14 @@ class VaultManager(
         check(isUnlocked(kind)) { "${kind.title} is locked." }
         return runCatching {
             val store = stores.getValue(kind)
-            val snapshot = store.read()
-            val entry = snapshot.entries.firstOrNull { it.id == entryId } ?: return null
+            val removed = mutableListOf<VaultEntry>()
+            store.updateEntries { entries ->
+                val entry = entries.firstOrNull { it.id == entryId }
+                if (entry != null) removed += entry
+                entries.filterNot { it.id == entryId }
+            }
+            val entry = removed.firstOrNull() ?: return null
             entry.attachmentId?.let { store.deleteAttachment(it) }
-            store.write(snapshot.entries.filterNot { it.id == entryId })
             logs.log(
                 if (kind == VaultKind.PERSONAL) LogType.VAULT_ENTRY_DELETED else LogType.INTRUDER_ENTRY_DELETED,
                 "Encrypted entry deleted from ${kind.title}",
@@ -345,14 +336,17 @@ class VaultManager(
         }
         return runCatching {
             val store = stores.getValue(kind)
-            val snapshot = store.read()
-            val entry = snapshot.entries.firstOrNull { it.id == entryId }
-                ?: return "The entry is no longer in the vault index."
-            store.write(
-                snapshot.entries.map {
-                    if (it.id == entryId) entry.copy(title = clean) else it
-                },
-            )
+            var renamed: VaultEntry? = null
+            store.updateEntries { entries ->
+                entries.map { entry ->
+                    if (entry.id == entryId) {
+                        entry.copy(title = clean).also { renamed = it }
+                    } else {
+                        entry
+                    }
+                }
+            }
+            val entry = renamed ?: return "The entry is no longer in the vault index."
             logs.log(
                 LogType.VAULT_FILE_RENAMED,
                 "${kind.title}: entry \"${entry.title}\" renamed to \"$clean\"",
@@ -854,7 +848,6 @@ class VaultManager(
     ): String? {
         return runCatching {
             val store = stores.getValue(VaultKind.INTRUDER)
-            val snapshot = store.read()
             val attachmentId = jpeg?.let { store.saveAttachment(it, "image/jpeg") }
             val entry = VaultEntry(
                 id = UUID.randomUUID().toString(),
@@ -868,7 +861,14 @@ class VaultManager(
                 failureStage = failureStage,
                 targetPackage = targetPackage,
             )
-            store.write(snapshot.entries + entry)
+            try {
+                store.updateEntries { it + entry }
+            } catch (error: Exception) {
+                // Do not leave an unreferenced encrypted attachment behind if
+                // the index commit fails.
+                attachmentId?.let { runCatching { store.deleteAttachment(it) } }
+                throw error
+            }
             null
         }.getOrElse { "The intruder record could not be written (${it.javaClass.simpleName})." }
     }
@@ -896,19 +896,22 @@ class VaultManager(
         }
         return try {
             val store = stores.getValue(VaultKind.INTRUDER)
-            val snapshot = store.read()
-            val incidents = snapshot.entries.filter { it.type == VaultEntryType.CAPTURE }
-            incidents.forEach { entry ->
+            val removed = mutableListOf<VaultEntry>()
+            store.updateEntries { entries ->
+                val incidents = entries.filter { it.type == VaultEntryType.CAPTURE }
+                removed += incidents
+                entries.filterNot { it.type == VaultEntryType.CAPTURE }
+            }
+            removed.forEach { entry ->
                 entry.attachmentId?.let { attachment ->
                     runCatching { store.deleteAttachment(attachment) }
                 }
             }
-            store.write(snapshot.entries.filterNot { it.type == VaultEntryType.CAPTURE })
             logs.log(
                 LogType.INTRUDER_HISTORY_CLEARED,
-                "Intruder Vault history cleared (${incidents.size} incidents)",
+                "Intruder Vault history cleared (${removed.size} incidents)",
             )
-            VaultHistoryClearResult(deleted = incidents.size)
+            VaultHistoryClearResult(deleted = removed.size)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -918,20 +921,28 @@ class VaultManager(
         }
     }
 
-    suspend fun deleteVault(kind: VaultKind): String? = runCatching {
-        credentials.clear(kind.credentialKind)
-        stores.getValue(kind).deleteAll()
-        unlockedAt.remove(kind)
-        clearPreviewCache()
-        if (kind == VaultKind.INTRUDER) {
-            prefs.setIntruderCaptureEnabled(false)
+    suspend fun deleteVault(kind: VaultKind): String? {
+        if (!isUnlocked(kind)) {
+            return "The ${kind.title} is locked. Unlock it and try again."
         }
-        logs.log(
-            if (kind == VaultKind.PERSONAL) LogType.VAULT_DELETED else LogType.INTRUDER_VAULT_DELETED,
-            "${kind.title} and its credential were deleted",
-        )
-        null
-    }.getOrElse { "The ${kind.title} could not be deleted." }
+        return runCatching {
+            // Remove the ciphertext first. If that fails, the credential is kept
+            // so the owner can retry instead of leaving orphaned vault data
+            // behind a cleared PIN.
+            stores.getValue(kind).deleteAll()
+            credentials.clear(kind.credentialKind)
+            unlockedAt.remove(kind)
+            clearPreviewCache()
+            if (kind == VaultKind.INTRUDER) {
+                prefs.setIntruderCaptureEnabled(false)
+            }
+            logs.log(
+                if (kind == VaultKind.PERSONAL) LogType.VAULT_DELETED else LogType.INTRUDER_VAULT_DELETED,
+                "${kind.title} and its credential were deleted",
+            )
+            null
+        }.getOrElse { "The ${kind.title} could not be deleted." }
+    }
 
     private companion object {
         const val SESSION_TIMEOUT_MS = 3 * 60 * 1000L

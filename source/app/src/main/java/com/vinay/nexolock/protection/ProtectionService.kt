@@ -163,13 +163,11 @@ class ProtectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> stopProtection()
-            else -> {
-                container.runtime.attach(this)
-                updateNotification()
-            }
-        }
+        // The notification action opens the app instead of stopping the
+        // service, so Self-Protection still requires the owner's configured
+        // factors before any protection state can change.
+        container.runtime.attach(this)
+        updateNotification()
         return START_STICKY
     }
 
@@ -509,14 +507,6 @@ class ProtectionService : Service() {
 
     // ------------------------------------------------------------------ service plumbing
 
-    private fun stopProtection() {
-        scope.launch {
-            container.prefs.setProtectionEnabled(false)
-            container.logs.log(LogType.PROTECTION_STOPPED, "Protection stopped by the owner")
-            stopSelf()
-        }
-    }
-
     private fun registerScreenReceiver() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -576,10 +566,11 @@ class ProtectionService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val stop = PendingIntent.getService(
+        val manage = PendingIntent.getActivity(
             this,
-            1,
-            Intent(this, ProtectionService::class.java).setAction(ACTION_STOP),
+            2,
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -587,7 +578,7 @@ class ProtectionService : Service() {
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(open)
-            .addAction(0, "Pause protection", stop)
+            .addAction(0, "Manage protection", manage)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
@@ -616,7 +607,6 @@ class ProtectionService : Service() {
     }
 
     companion object {
-        const val ACTION_STOP = "com.vinay.nexolock.action.STOP_PROTECTION"
         private const val TAG = "NexoLock"
         private const val CHANNEL_ID = "nexo_protection"
         private const val NOTIFICATION_ID = 7301

@@ -5,7 +5,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vinay.nexolock.core.crypto.KeystoreCipher
 import com.vinay.nexolock.data.LogType
+import com.vinay.nexolock.data.NexoPreferences
 import com.vinay.nexolock.data.SecurityLogRepository
+import com.vinay.nexolock.domain.SecurityOperation
+import com.vinay.nexolock.domain.SelfProtectionGate
 import com.vinay.nexolock.domain.VolumePress
 import com.vinay.nexolock.protection.VolumeCaptureController
 import kotlinx.coroutines.runBlocking
@@ -69,6 +72,44 @@ class NexoInstrumentedTest {
         controller.clear()
         assertFalse(controller.onKeyEvent(up))
         assertEquals(1, presses.size)
+    }
+
+    /**
+     * Device-level confirmation that Self-Protection state follows the bit the
+     * owner persisted: a new [NexoPreferences] instance (a fresh process after a
+     * restart or reboot) reads the same value, and the gate refuses changes
+     * until a verification happens in that process.
+     */
+    @Test
+    fun selfProtectionRequirementSurvivesANewProcessInstance() {
+        val first = NexoPreferences(context)
+        val original = runBlocking { first.snapshot().protectionEnabled }
+        try {
+            runBlocking {
+                val config = first.snapshot()
+                first.setProtectionEnabled(true)
+                if (!config.setupComplete) first.setSetupComplete(true)
+            }
+            // A second instance stands in for the next process: nothing about
+            // the requirement lives in memory.
+            val second = NexoPreferences(context)
+            assertTrue(
+                "The protection flag must be read back from persisted storage",
+                runBlocking { second.snapshot().protectionEnabled },
+            )
+            val gate = SelfProtectionGate()
+            assertEquals(
+                SelfProtectionGate.Decision.AUTHENTICATION_REQUIRED,
+                gate.decide(SecurityOperation.DISABLE_PROTECTION, required = true, nowMs = 1_000L),
+            )
+            gate.grant(1_000L)
+            assertEquals(
+                SelfProtectionGate.Decision.ALLOWED,
+                gate.decide(SecurityOperation.DISABLE_PROTECTION, required = true, nowMs = 1_500L),
+            )
+        } finally {
+            runBlocking { first.setProtectionEnabled(original) }
+        }
     }
 
     @Test

@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: /source
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "build"
+    groups:
+      androidx:
+        patterns:
+          - androidx.*
+          - com.google.android.*
+      kotlin:
+        patterns:
+          - org.jetbrains.kotlin*
+          - org.jetbrains.kotlinx*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "ci"

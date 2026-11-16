@@ -10,6 +10,7 @@ import com.vinay.nexolock.AppContainer
 import com.vinay.nexolock.data.LogType
 import com.vinay.nexolock.data.NexoConfig
 import com.vinay.nexolock.domain.AuthFactor
+import com.vinay.nexolock.domain.AuthPolicy
 import com.vinay.nexolock.domain.AuthenticationSession
 import com.vinay.nexolock.domain.CredentialKind
 import com.vinay.nexolock.domain.LockoutPolicy
@@ -146,6 +147,13 @@ class LockViewModel(
     private var biometricUnavailable = false
 
     /**
+     * Recovery factors verified by the repository in the current recovery
+     * flow. [onRecoverySuccess] cannot complete from the UI callback alone.
+     */
+    private var recoveryGeneration = 0L
+    private val recoveryVerified = linkedSetOf<CredentialKind>()
+
+    /**
      * True once the lock surface has actually drawn its first frame. The decoy
      * window (or the direct first stage) starts only after this flag is set.
      */
@@ -211,7 +219,7 @@ class LockViewModel(
             _state.update {
                 it.copy(
                     ready = true,
-                    pinLength = config.pinLength,
+                    pinLength = AuthPolicy.safePinLength(config.pinLength),
                     decoyEnabled = config.decoyEnabled,
                     biometricEnabled = config.biometricEnabled,
                     biometricReady = biometricAvailable,
@@ -537,6 +545,8 @@ class LockViewModel(
 
     private fun denyExpired(stageLabel: String) {
         capture?.reset()
+        recoveryGeneration += 1
+        recoveryVerified.clear()
         container.runtime.onLockResult(
             packageName = _state.value.targetPackage,
             sessionToken = _state.value.sessionId,
@@ -839,6 +849,13 @@ class LockViewModel(
 
     fun openRecovery() {
         if (_state.value.phase !is LockPhase.MasterPin) return
+        // Recovery is an alternative to the master PIN and is throttled by the
+        // shared lockout policy. The PIN countdown must not replace the
+        // recovery screen halfway through a legitimate recovery attempt.
+        stageJob?.cancel()
+        stageJob = null
+        recoveryGeneration += 1
+        recoveryVerified.clear()
         _state.update {
             it.copy(
                 phase = LockPhase.MasterPin(recovery = true),
@@ -853,15 +870,36 @@ class LockViewModel(
 
     fun closeRecovery() {
         if (_state.value.phase !is LockPhase.MasterPin) return
+        recoveryGeneration += 1
+        recoveryVerified.clear()
         _state.update {
             it.copy(phase = LockPhase.MasterPin(recovery = false), error = null)
         }
+        val active = session
+        if (active != null && active.expireIfDue(nowMs())) {
+            denyExpired("master PIN")
+        } else if (active?.stageTimerRunning() == true) {
+            startStageTicker()
+        }
     }
 
+    private fun recoveryActive(): Boolean =
+        _state.value.showRecovery && _state.value.phase is LockPhase.MasterPin
+
     fun verifyRecoveryPin(pin: String, onResult: (String?) -> Unit) {
+        if (!recoveryActive() || !config.hasRecoveryPin) {
+            onResult("No recovery PIN is available in this session.")
+            return
+        }
+        val generation = recoveryGeneration
         viewModelScope.launch {
             val attempt = container.auth.verify(CredentialKind.RECOVERY_PIN, pin)
+            if (generation != recoveryGeneration || !recoveryActive()) {
+                onResult("Recovery is no longer active.")
+                return@launch
+            }
             if (attempt.accepted) {
+                recoveryVerified += CredentialKind.RECOVERY_PIN
                 onResult(null)
             } else {
                 container.logs.log(LogType.RECOVERY_FAILED, "Recovery PIN rejected on lock screen")
@@ -872,9 +910,19 @@ class LockViewModel(
     }
 
     fun verifyRecoveryPattern(pattern: String, onResult: (String?) -> Unit) {
+        if (!recoveryActive() || !config.hasRecoveryPattern) {
+            onResult("No recovery pattern is available in this session.")
+            return
+        }
+        val generation = recoveryGeneration
         viewModelScope.launch {
             val attempt = container.auth.verify(CredentialKind.RECOVERY_PATTERN, pattern)
+            if (generation != recoveryGeneration || !recoveryActive()) {
+                onResult("Recovery is no longer active.")
+                return@launch
+            }
             if (attempt.accepted) {
+                recoveryVerified += CredentialKind.RECOVERY_PATTERN
                 onResult(null)
             } else {
                 container.logs.log(LogType.RECOVERY_FAILED, "Recovery pattern rejected on lock screen")
@@ -886,12 +934,23 @@ class LockViewModel(
 
     fun onRecoverySuccess(method: UnlockMethod) {
         viewModelScope.launch {
-            val active = session
-            if (_state.value.phase !is LockPhase.MasterPin ||
-                active?.authorizeByRecovery() != true
+            if (!recoveryActive()) return@launch
+            val active = session ?: return@launch
+            if (!AuthPolicy.recoverySatisfied(
+                    hasRecoveryPin = config.hasRecoveryPin,
+                    hasRecoveryPattern = config.hasRecoveryPattern,
+                    verified = recoveryVerified,
+                )
             ) {
+                container.logs.log(
+                    LogType.RECOVERY_FAILED,
+                    "Recovery callback rejected: not every configured factor was verified",
+                )
                 return@launch
             }
+            if (active.terminal || !active.authorizeByRecovery()) return@launch
+            recoveryGeneration += 1
+            recoveryVerified.clear()
             container.logs.log(
                 LogType.RECOVERY_UNLOCKED,
                 "Recovery unlock used: ${method.label}",
@@ -914,6 +973,8 @@ class LockViewModel(
         val target = _state.value.targetPackage
         stageJob?.cancel()
         lockoutJob?.cancel()
+        recoveryGeneration += 1
+        recoveryVerified.clear()
         container.runtime.onLockResult(
             packageName = target,
             sessionToken = _state.value.sessionId,
@@ -1007,7 +1068,6 @@ class LockViewModel(
     override fun onCleared() {
         lockoutJob?.cancel()
         stageJob?.cancel()
-        super.onCleared()
     }
 
     companion object {

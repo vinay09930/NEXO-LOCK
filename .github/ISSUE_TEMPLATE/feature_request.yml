@@ -1,0 +1,72 @@
+name: Feature request
+description: Propose a focused improvement to NEXO LOCK.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        NEXO LOCK is verification-first. Proposals that add attack surface,
+        network access, telemetry, or unverifiable security claims are unlikely
+        to be accepted. Read [ROADMAP.md](https://github.com/vinay09930/NEXO-LOCK/blob/main/ROADMAP.md)
+        and [KNOWN_LIMITATIONS.md](https://github.com/vinay09930/NEXO-LOCK/blob/main/KNOWN_LIMITATIONS.md)
+        before opening a request.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and the roadmap for this request.
+          required: true
+        - label: This request does not require cloud sync, analytics, or an internet permission.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this solve? Describe the current limitation, not only the proposed UI.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A focused description of the change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy impact
+      description: |
+        Does this add a permission, component, storage location, network access,
+        or new sensitive data? Does it change the threat model or user-data
+        compatibility?
+    validations:
+      required: true
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: How could this be verified?
+      description: Unit tests, instrumented tests, or a concrete device test plan.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+    validations:
+      required: false

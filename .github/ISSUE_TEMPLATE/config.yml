@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/vinay09930/NEXO-LOCK/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue.
+  - name: Installation and setup help
+    url: https://github.com/vinay09930/NEXO-LOCK/blob/main/TROUBLESHOOTING.md
+    about: Check common permission, overlay, accessibility, and battery issues first.
+  - name: Known limitations
+    url: https://github.com/vinay09930/NEXO-LOCK/blob/main/KNOWN_LIMITATIONS.md
+    about: Understand what the app does not claim to protect against.

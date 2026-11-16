@@ -23,6 +23,8 @@ import com.vinay.nexolock.domain.AuthPolicy
 import com.vinay.nexolock.domain.CredentialKind
 import com.vinay.nexolock.domain.InstalledApp
 import com.vinay.nexolock.domain.LockoutPolicy
+import com.vinay.nexolock.domain.SecurityOperation
+import com.vinay.nexolock.domain.SelfProtectionPolicy
 import com.vinay.nexolock.domain.ThemeMode
 import com.vinay.nexolock.domain.UnlockMethod
 import com.vinay.nexolock.domain.VolumePattern
@@ -30,6 +32,7 @@ import com.vinay.nexolock.domain.VolumePress
 import com.vinay.nexolock.protection.PermissionChecks
 import com.vinay.nexolock.protection.PermissionManager
 import com.vinay.nexolock.protection.ProtectionService
+import com.vinay.nexolock.security.SecurityAuthorization
 import com.vinay.nexolock.vault.CaptureState
 import com.vinay.nexolock.vault.ImportDiagnostic
 import com.vinay.nexolock.vault.OriginalDeletionResult
@@ -67,6 +70,16 @@ import java.io.IOException
 import java.util.ArrayDeque
 
 enum class BiometricState { UNSUPPORTED, NOT_ENROLLED, READY }
+
+/**
+ * How many times one refused sensitive change is retried after verification.
+ * The retry re-enters the guard; this only prevents an endless prompt loop if a
+ * grant is revoked between the check and the retry.
+ */
+private const val MAX_SECURITY_ATTEMPTS = 2
+
+/** A fresh grant is never revoked by a lifecycle bounce this soon after it. */
+private const val RELOCK_GRACE_MS = 5_000L
 
 data class Notice(val message: String, val isError: Boolean = false)
 
@@ -204,9 +217,22 @@ data class ViewerUiState(
         }
 }
 
+/**
+ * Self-Protection state as the UI must see it. [selfProtectionRequired] is
+ * derived from the persisted protection flag; [authorized] and [stepUp] come
+ * from the single authorization checkpoint.
+ */
+data class SecurityUi(
+    val selfProtectionRequired: Boolean = false,
+    val authorized: Boolean = false,
+    val remainingMs: Long = 0L,
+    val stepUp: SecurityOperation? = null,
+)
+
 data class NexoUiState(
     val loading: Boolean = true,
     val config: NexoConfig = NexoConfig(),
+    val security: SecurityUi = SecurityUi(),
     val protectedPackages: Set<String> = emptySet(),
     val apps: List<InstalledApp> = emptyList(),
     val appsLoading: Boolean = true,
@@ -248,6 +274,20 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     /** Request already handed to a SAF picker; the result arrives later. */
     private var pendingExport: ExportRequest? = null
 
+    /**
+     * A sensitive change that was refused for lack of (fresh) authorization and
+     * is re-run only after the *next* successful Self-Protection grant. The
+     * step-up id and grant id prevent a stale request from being replayed after
+     * a denial, expiry or unrelated unlock.
+     */
+    private data class PendingChange(
+        val stepUpId: Long,
+        val grantIdAtRequest: Long,
+        val run: () -> Unit,
+    )
+
+    private var pendingChange: PendingChange? = null
+
     /** Delete confirmations waiting behind the currently active system dialog. */
     private val deleteConsentQueue = ArrayDeque<DeleteConsentRequest>()
     private var activeDeleteConsent: DeleteConsentRequest? = null
@@ -264,6 +304,9 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
                             loading = false,
                             config = config,
                             protectedPackages = packages,
+                            security = it.security.copy(
+                                selfProtectionRequired = SelfProtectionPolicy.isRequired(config),
+                            ),
                         )
                     }
                 }
@@ -277,6 +320,38 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
                         permissionHealth = container.permissionHealth(),
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            container.security.state.collect { security ->
+                _state.update {
+                    it.copy(
+                        security = it.security.copy(
+                            authorized = security.authorized,
+                            remainingMs = security.remainingMs,
+                            stepUp = security.stepUp,
+                        ),
+                    )
+                }
+                val pending = pendingChange ?: return@collect
+                // A denial, expiry, cancellation or a newer step-up invalidates
+                // the queued change immediately. It must never survive until an
+                // unrelated unlock later in the same process.
+                if (pending.stepUpId != security.stepUpId) {
+                    pendingChange = null
+                    return@collect
+                }
+                // Only a grant newer than the one present when the change was
+                // refused may run it. A stale grant that was already authorized
+                // must not replay the change before the owner verifies again.
+                if (!security.authorized ||
+                    security.grantId <= pending.grantIdAtRequest
+                ) {
+                    return@collect
+                }
+                pendingChange = null
+                container.security.clearStepUp()
+                pending.run()
             }
         }
         viewModelScope.launch {
@@ -501,7 +576,7 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setDecoyEnabled(value: Boolean) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.MODIFY_PROTECTION_RULES) {
             container.prefs.setDecoyEnabled(value)
             container.logs.log(
                 LogType.PIN_CHANGED,
@@ -511,19 +586,19 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setDecoyTimeoutSeconds(value: Int) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.MODIFY_PROTECTION_RULES) {
             container.prefs.setDecoyTimeoutSeconds(value)
         }
     }
 
     fun setGestureTimeoutSeconds(value: Int) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.MODIFY_PROTECTION_RULES) {
             container.prefs.setGestureTimeoutSeconds(value)
         }
     }
 
     fun setPinTimeoutSeconds(value: Int) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.MODIFY_PROTECTION_RULES) {
             container.prefs.setPinTimeoutSeconds(value)
         }
     }
@@ -535,59 +610,150 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     // ------------------------------------------------------------------ protected apps
 
     fun setAppProtected(packageName: String, protect: Boolean) {
-        viewModelScope.launch {
-            val current = container.protectedApps.snapshot().toMutableSet()
-            if (protect) current += packageName else current -= packageName
-            container.protectedApps.setPackages(current)
+        if (protect) {
+            viewModelScope.launch { writeProtectedApps(setOf(packageName), protect = true) }
+            return
+        }
+        // Removing protection from an app is a guarded change: the write below
+        // only happens when the authorization checkpoint allows it.
+        guardedChange(SecurityOperation.REMOVE_PROTECTED_APP) {
+            writeProtectedApps(setOf(packageName), protect = false)
         }
     }
 
     fun setAllVisibleAppsProtected(apps: List<InstalledApp>, protect: Boolean) {
-        viewModelScope.launch {
-            val current = container.protectedApps.snapshot().toMutableSet()
-            if (protect) current += apps.map { it.packageName } else current -= apps.map { it.packageName }.toSet()
-            container.protectedApps.setPackages(current)
+        val packages = apps.map { it.packageName }.toSet()
+        if (protect) {
+            viewModelScope.launch { writeProtectedApps(packages, protect = true) }
+            return
         }
+        guardedChange(SecurityOperation.REMOVE_PROTECTED_APP) {
+            writeProtectedApps(packages, protect = false)
+        }
+    }
+
+    private suspend fun writeProtectedApps(packages: Set<String>, protect: Boolean) {
+        val current = container.protectedApps.snapshot().toMutableSet()
+        if (protect) current += packages else current -= packages
+        container.protectedApps.setPackages(current)
     }
 
     // ------------------------------------------------------------------ protection service
 
+    /**
+     * Turning App Protection off is only possible through the authorization
+     * checkpoint. Nothing else in the app calls [applyProtectionEnabled] with
+     * `false`: the notification action opens this screen instead of stopping
+     * the service directly.
+     */
     fun setProtectionEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            container.prefs.setProtectionEnabled(enabled)
-            if (enabled) {
-                if (!container.prefs.snapshot().hasMainPin) {
-                    notify("Create a main PIN before starting protection.", error = true)
-                    container.prefs.setProtectionEnabled(false)
-                    return@launch
-                }
-                val started = withContext(Dispatchers.Main) {
-                    runCatching {
-                        ContextCompat.startForegroundService(
-                            container.appContext,
-                            Intent(container.appContext, ProtectionService::class.java),
-                        )
-                    }.isSuccess
-                }
-                if (!started) {
-                    notify("Android blocked the protection service. Open the app and try again.", error = true)
-                    container.prefs.setProtectionEnabled(false)
-                } else {
-                    val health = container.permissionHealth()
-                    val problems = health.warnings
-                    if (problems.isNotEmpty()) {
-                        notify(problems.first(), error = true)
-                    }
-                }
-            } else {
+        if (enabled) {
+            viewModelScope.launch {
+                applyProtectionEnabled(true)
+                refreshPermissions()
+            }
+            return
+        }
+        guardedChange(SecurityOperation.DISABLE_PROTECTION) {
+            applyProtectionEnabled(false)
+            refreshPermissions()
+        }
+    }
+
+    private suspend fun applyProtectionEnabled(enabled: Boolean) {
+        container.prefs.setProtectionEnabled(enabled)
+        if (enabled) {
+            if (!container.prefs.snapshot().hasMainPin) {
+                notify("Create a main PIN before starting protection.", error = true)
+                container.prefs.setProtectionEnabled(false)
+                return
+            }
+            val started = withContext(Dispatchers.Main) {
                 runCatching {
-                    container.appContext.stopService(
+                    ContextCompat.startForegroundService(
+                        container.appContext,
                         Intent(container.appContext, ProtectionService::class.java),
                     )
-                }
-                container.logs.log(LogType.PROTECTION_STOPPED, "Protection stopped")
+                }.isSuccess
             }
-            refreshPermissions()
+            if (!started) {
+                notify("Android blocked the protection service. Open the app and try again.", error = true)
+                container.prefs.setProtectionEnabled(false)
+            } else {
+                val problems = container.permissionHealth().warnings
+                if (problems.isNotEmpty()) {
+                    notify(problems.first(), error = true)
+                }
+            }
+        } else {
+            runCatching {
+                container.appContext.stopService(
+                    Intent(container.appContext, ProtectionService::class.java),
+                )
+            }
+            container.logs.log(LogType.PROTECTION_STOPPED, "Protection stopped by the owner")
+            // A grant that was issued while protection was on must not survive
+            // into a later re-enable in the same process.
+            container.security.revoke("Protection stopped")
+        }
+    }
+
+    /** Locks the interface again, e.g. after the app spent time in the background. */
+    fun lockSelfProtection() {
+        // A lifecycle bounce immediately after verification (the system
+        // biometric prompt closing, a configuration restart) must not revoke a
+        // grant that was just issued: that looked like the gate asking again
+        // straight after a successful unlock.
+        if (container.security.authorizedForMs() in 1 until RELOCK_GRACE_MS) return
+        pendingChange = null
+        container.security.clearStepUp()
+        container.security.revoke("NEXO LOCK moved to the background")
+    }
+
+    /**
+     * The one path every sensitive mutation takes.
+     *
+     * [SecurityAuthorization.mutate] re-reads the persisted protection flag,
+     * evaluates the gate and only then runs [change]. A refusal is not hidden:
+     * the caller gets a step-up request, and the same change is retried once the
+     * owner verifies again. The retry re-enters this guard, so an expired or
+     * revoked grant simply refuses it again instead of applying it.
+     */
+    private fun guardedChange(
+        operation: SecurityOperation,
+        attempt: Int = 1,
+        onResult: (String?) -> Unit = {},
+        change: suspend () -> Unit,
+    ) {
+        viewModelScope.launch {
+            when (val outcome = container.security.mutate(operation) { change() }) {
+                SecurityAuthorization.Outcome.Applied -> onResult(null)
+
+                is SecurityAuthorization.Outcome.Failed ->
+                    onResult(outcome.message)
+
+                SecurityAuthorization.Outcome.AuthenticationRequired,
+                SecurityAuthorization.Outcome.FreshAuthenticationRequired,
+                -> {
+                    if (attempt > MAX_SECURITY_ATTEMPTS) {
+                        onResult("The change was blocked because authentication did not complete.")
+                        return@launch
+                    }
+                    if (attempt == 1) {
+                        container.logs.log(
+                            LogType.SENSITIVE_CHANGE_BLOCKED,
+                            "Refused without authorization: ${operation.label}",
+                        )
+                    }
+                    val request = container.security.requestStepUp(operation)
+                    pendingChange = PendingChange(
+                        stepUpId = request.id,
+                        grantIdAtRequest = request.grantId,
+                        run = { guardedChange(operation, attempt + 1, onResult, change) },
+                    )
+                    onResult("Verify it's you to ${operation.label}.")
+                }
+            }
         }
     }
 
@@ -1540,7 +1706,7 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setDeleteOriginalsAfterImport(value: Boolean) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.CHANGE_SECURITY_SETTINGS) {
             container.prefs.setDeleteOriginalsAfterImport(value)
             container.logs.log(
                 LogType.VAULT_AUTO_DELETE_CHANGED,
@@ -2115,19 +2281,17 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setIntruderCaptureEnabled(value: Boolean, onResult: (String?) -> Unit = {}) {
-        viewModelScope.launch {
-            val config = container.prefs.snapshot()
-            if (value && !config.hasIntruderVaultPin) {
-                onResult("Create the Intruder Vault PIN first.")
-                return@launch
-            }
+        if (value && !_state.value.config.hasIntruderVaultPin) {
+            onResult("Create the Intruder Vault PIN first.")
+            return
+        }
+        guardedChange(SecurityOperation.CHANGE_SECURITY_SETTINGS, onResult = onResult) {
             container.prefs.setIntruderCaptureEnabled(value)
             container.intruderCapture.refreshReadiness()
             container.logs.log(
                 LogType.CAPTURE_SETTING_CHANGED,
                 if (value) "Intruder capture enabled" else "Intruder capture disabled",
             )
-            onResult(null)
         }
     }
 
@@ -2138,11 +2302,15 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setStrictMode(value: Boolean) {
-        viewModelScope.launch { container.prefs.setStrictMode(value) }
+        guardedChange(SecurityOperation.CHANGE_SECURITY_SETTINGS) {
+            container.prefs.setStrictMode(value)
+        }
     }
 
     fun setPrivacyCover(value: Boolean) {
-        viewModelScope.launch { container.prefs.setPrivacyCover(value) }
+        guardedChange(SecurityOperation.CHANGE_SECURITY_SETTINGS) {
+            container.prefs.setPrivacyCover(value)
+        }
     }
 
     fun setBiometricEnabled(value: Boolean, onResult: (String?) -> Unit = {}) {
@@ -2150,13 +2318,12 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
             onResult("Biometric authentication is not available or not enrolled.")
             return
         }
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.CHANGE_AUTHENTICATION, onResult = onResult) {
             container.prefs.setBiometricEnabled(value)
             container.logs.log(
                 LogType.PIN_CHANGED,
                 if (value) "Biometric unlock enabled" else "Biometric unlock disabled",
             )
-            onResult(null)
         }
     }
 
@@ -2286,19 +2453,22 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun saveGesture(pattern: VolumePattern, onResult: (String?) -> Unit) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.CHANGE_AUTHENTICATION, onResult = onResult) {
             runCatching {
                 container.credentials.store(CredentialKind.MAIN_GESTURE, pattern.code)
                 container.prefs.setGestureLength(pattern.presses.size)
                 container.prefs.setGestureEnabled(true)
                 container.logs.log(LogType.GESTURE_CONFIGURED, "Volume pattern configured")
-                onResult(null)
-            }.onFailure { onResult("The volume pattern could not be saved.") }
+            }.getOrElse {
+                // Surface the failure through the guard so the success callback
+                // is not called after an unsuccessful save.
+                throw IllegalStateException("The volume pattern could not be saved.", it)
+            }
         }
     }
 
     fun clearGesture() {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.CHANGE_AUTHENTICATION) {
             container.credentials.clear(CredentialKind.MAIN_GESTURE)
             container.prefs.setGestureLength(0)
             container.prefs.setGestureEnabled(false)
@@ -2307,10 +2477,10 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setGestureEnabled(value: Boolean) {
-        viewModelScope.launch {
+        guardedChange(SecurityOperation.CHANGE_AUTHENTICATION) {
             if (value && !container.credentials.exists(CredentialKind.MAIN_GESTURE)) {
                 notify("Record a volume pattern first.", error = true)
-                return@launch
+                return@guardedChange
             }
             container.prefs.setGestureEnabled(value)
         }

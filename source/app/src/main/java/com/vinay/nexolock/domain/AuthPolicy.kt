@@ -6,6 +6,10 @@ package com.vinay.nexolock.domain
  */
 object AuthPolicy {
 
+    /** The only PIN lengths the setup and credential screens can create. */
+    const val MIN_PIN_LENGTH = 4
+    const val MAX_PIN_LENGTH = 8
+
     sealed interface AfterFactor {
         data object Unlock : AfterFactor
         data object RequirePin : AfterFactor
@@ -30,8 +34,31 @@ object AuthPolicy {
 
     fun canUseRecovery(hasRecoveryPin: Boolean): Boolean = hasRecoveryPin
 
+    /**
+     * Recovery is complete only when every configured recovery factor was
+     * verified by the repository in the current flow. The recovery PIN is
+     * mandatory; the pattern is a second factor when one is configured.
+     */
+    fun recoverySatisfied(
+        hasRecoveryPin: Boolean,
+        hasRecoveryPattern: Boolean,
+        verified: Set<CredentialKind>,
+    ): Boolean {
+        val steps = recoverySteps(hasRecoveryPin, hasRecoveryPattern)
+        if (steps.isEmpty()) return false
+        return steps.all { step ->
+            when (step) {
+                RecoveryStep.RECOVERY_PIN -> CredentialKind.RECOVERY_PIN in verified
+                RecoveryStep.RECOVERY_PATTERN -> CredentialKind.RECOVERY_PATTERN in verified
+            }
+        }
+    }
+
+    /** A corrupted persisted length must never produce an unusable PIN pad. */
+    fun safePinLength(length: Int): Int = length.coerceIn(MIN_PIN_LENGTH, MAX_PIN_LENGTH)
+
     fun validPin(pin: String): Boolean =
-        pin.length in 4..8 && pin.all { it in '0'..'9' }
+        pin.length in MIN_PIN_LENGTH..MAX_PIN_LENGTH && pin.all { it in '0'..'9' }
 
     /**
      * Recovery pattern is a 3x3 dot sequence (index 0..8). At least 4 dots are

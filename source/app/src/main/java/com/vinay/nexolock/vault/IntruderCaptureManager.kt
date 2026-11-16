@@ -75,6 +75,7 @@ class IntruderCaptureManager(
         if (!config.intruderCaptureEnabled || !config.hasIntruderVaultPin) {
             _state.update {
                 it.copy(
+                    inProgress = false,
                     lastStatus = CaptureStatus.DISABLED,
                     lastMessage = if (!config.hasIntruderVaultPin) {
                         "Create the Intruder Vault PIN first."

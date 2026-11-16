@@ -7,14 +7,15 @@ the delivery, not an afterthought.
 
 | Gap | Status | Impact |
 | --- | --- | --- |
-| Runtime UI testing | **PARTIAL** | Home, Settings hub, all nine category pages, About, back navigation, the floating pill, one warning action, and one vault shortcut were exercised on an API 37 emulator |
+| Runtime UI testing | **PARTIAL** | Code-13 Home, Settings hub, all nine category pages, About, back navigation, the floating pill, one warning action, and one vault shortcut were exercised on an API 37 emulator; build 14 was installed over it and launched |
 | First-run setup on device | **PASS** | Volume pattern and six-digit master PIN were configured on the emulator |
 | Full authentication on device | **NOT TESTED** | Unlock, biometric, recovery, lockout, and decoy timing were not run end to end |
+| Self-Protection gate on device | **PARTIAL** | Gate policy and authorization rules are covered by JVM tests; the full enable-protection → guarded-change → gate flow was not driven end to end |
 | Vault import/export on device | **NOT TESTED** | SAF pickers, streaming I/O, and large files were not run |
 | Intruder capture on device | **NOT TESTED** | Camera2 capture and permission flows were not run |
-| Upgrade migration | **PARTIAL** | The emulator upgrade over the previous same-key release was exercised; a physical-device upgrade from an earlier build was not |
+| Upgrade migration | **PARTIAL** | The emulator upgrade over the previous same-key release was exercised, including code 13 → code 14 (install succeeded, data preserved); the build-14 UI could not be visually confirmed because the host-starved emulator's system processes raised ANR dialogs, and a physical-device upgrade from an earlier build was not tested |
 | Accessibility/overlay protection | **NOT TESTED** | Foreground detection and lock coverage against a real target app were not observed |
-| Android Lint | **NOT RUN** | Lint was unavailable on the 8 GB build host |
+| Android Lint | **PASS** | `:app:lintDebug` reported 0 errors and 39 non-blocking warnings |
 | Instrumented tests | **NOT RUN** | No `connectedAndroidTest` execution |
 | Multiple Android versions/vendors | **NOT TESTED** | One API 37 x86_64 emulator was used; no real device or OEM skin |
 | Documentation screenshots | **INCLUDED** | See `screenshots/v1.2.0/` and [V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md) |
@@ -30,7 +31,9 @@ the delivery, not an afterthought.
   larger and not optimized.
 - **No reproducible-build guarantee.** Build timestamps and toolchain versions can
   change the APK bytes.
-- **No CI pipeline.** Verification is manual and local.
+- **CI is new and unproven.** `.github/workflows/android-ci.yml` is defined, but it
+  has not yet completed a run on GitHub-hosted runners. Local verification remains
+  the source of truth until the first green CI run.
 - **Manual release upload.** The APK is built locally and attached to a GitHub
   Release manually; no automated provenance or attestation is provided.
 
@@ -59,6 +62,16 @@ need manual changes.
 
 There is no cloud recovery, escrow, or reset backdoor. Forgetting the master PIN,
 recovery credentials, and vault PIN means the encrypted data cannot be recovered.
+
+### Vault PINs are independent, not required to differ
+
+NEXO LOCK does not compare a vault PIN with the main PIN, recovery PIN, or the
+other vault PIN. Rejecting duplicates would create an unthrottled oracle for
+testing other credentials through the vault-creation screen. Each family has its
+own verifier, failure budget, Keystore key, associated data, and directory, so
+reusing the same digits does not merge the trust domains. It does mean one
+observed PIN can open more than one surface; choose distinct secrets if that
+matters to your threat model.
 
 ### Weak secrets remain weak
 

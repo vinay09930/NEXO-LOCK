@@ -75,11 +75,13 @@ object CameraCapture {
 
                 var device: CameraDevice? = null
                 var session: CameraCaptureSession? = null
-                var resumed = false
+                val finished = java.util.concurrent.atomic.AtomicBoolean(false)
 
                 fun finish(value: CaptureResult) {
-                    if (resumed) return
-                    resumed = true
+                    // The state callback, the image listener and the openCamera
+                    // failure path can all race. Only the first outcome may
+                    // close resources and resume the continuation.
+                    if (!finished.compareAndSet(false, true)) return
                     runCatching { session?.close() }
                     runCatching { device?.close() }
                     runCatching { reader.close() }

@@ -1,6 +1,7 @@
 package com.vinay.nexolock
 
 import com.vinay.nexolock.domain.AuthPolicy
+import com.vinay.nexolock.domain.CredentialKind
 import com.vinay.nexolock.domain.LockoutPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -35,6 +36,55 @@ class AuthPolicyTest {
         assertTrue(AuthPolicy.canUseRecovery(hasRecoveryPin = true))
         assertFalse(AuthPolicy.canUseRecovery(hasRecoveryPin = false))
         assertTrue(AuthPolicy.recoverySteps(false, true).isEmpty())
+    }
+
+    @Test
+    fun recoveryIsCompleteOnlyWhenEveryConfiguredFactorWasVerified() {
+        assertTrue(
+            AuthPolicy.recoverySatisfied(
+                hasRecoveryPin = true,
+                hasRecoveryPattern = false,
+                verified = setOf(CredentialKind.RECOVERY_PIN),
+            ),
+        )
+        assertFalse(
+            AuthPolicy.recoverySatisfied(
+                hasRecoveryPin = true,
+                hasRecoveryPattern = false,
+                verified = emptySet(),
+            ),
+        )
+        assertFalse(
+            AuthPolicy.recoverySatisfied(
+                hasRecoveryPin = true,
+                hasRecoveryPattern = true,
+                verified = setOf(CredentialKind.RECOVERY_PIN),
+            ),
+        )
+        assertTrue(
+            AuthPolicy.recoverySatisfied(
+                hasRecoveryPin = true,
+                hasRecoveryPattern = true,
+                verified = setOf(CredentialKind.RECOVERY_PIN, CredentialKind.RECOVERY_PATTERN),
+            ),
+        )
+        // A pattern alone is never enough, and a half-configured install cannot
+        // authorize recovery at all.
+        assertFalse(
+            AuthPolicy.recoverySatisfied(
+                hasRecoveryPin = false,
+                hasRecoveryPattern = true,
+                verified = setOf(CredentialKind.RECOVERY_PATTERN),
+            ),
+        )
+    }
+
+    @Test
+    fun aCorruptPersistedPinLengthIsClampedToTheUsableRange() {
+        assertEquals(AuthPolicy.MIN_PIN_LENGTH, AuthPolicy.safePinLength(0))
+        assertEquals(AuthPolicy.MIN_PIN_LENGTH, AuthPolicy.safePinLength(-5))
+        assertEquals(6, AuthPolicy.safePinLength(6))
+        assertEquals(AuthPolicy.MAX_PIN_LENGTH, AuthPolicy.safePinLength(99))
     }
 
     @Test

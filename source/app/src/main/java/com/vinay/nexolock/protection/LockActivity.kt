@@ -1,5 +1,6 @@
 package com.vinay.nexolock.protection
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -200,6 +201,10 @@ class LockActivity : FragmentActivity() {
         super.onDestroy()
     }
 
+    // Lint flags ComponentActivity.dispatchKeyEvent as restricted to the
+    // androidx group, but this override is the public framework Activity hook.
+    // It is required to swallow volume keys before any view can consume them.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (::container.isInitialized && container.volumeCapture.onKeyEvent(event)) {
             return true

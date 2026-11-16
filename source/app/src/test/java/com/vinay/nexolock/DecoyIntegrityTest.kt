@@ -7,11 +7,16 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * The decoy lock experience is frozen for V1.1.3. These hashes pin the three
- * source files that implement the decoy UI, its state machine and its activity
- * transitions. Any future change to colours, text, layout, icons, animation,
- * navigation or timing fails this test and must be treated as a decoy-policy
- * change, not as a vault/import change.
+ * The decoy lock experience is frozen. These hashes pin the three source files
+ * that implement the decoy UI, its state machine and its activity transitions.
+ * Any future change to colours, text, layout, icons, animation, navigation or
+ * timing fails this test and must be treated as a decoy-policy change, not as
+ * a vault/import change.
+ *
+ * LockViewModel.kt and LockActivity.kt were re-frozen for 1.2.0 build 14 only
+ * to bind recovery completion to repository-verified factors, clamp a corrupt
+ * persisted PIN length, and annotate the existing key-event override for lint.
+ * The decoy UI, text and timings were not changed.
  */
 class DecoyIntegrityTest {
 
@@ -24,11 +29,11 @@ class DecoyIntegrityTest {
         ),
         FrozenFile(
             "src/main/java/com/vinay/nexolock/ui/lock/LockViewModel.kt",
-            "0f0339c61a3373df63368de8beb20e6af8f24ae05004238daddd03d38db25194",
+            "70c5afeaace78b29da7c7c8e9e5593f2633f725d7b3e4e1146dc594f3eb0c380",
         ),
         FrozenFile(
             "src/main/java/com/vinay/nexolock/protection/LockActivity.kt",
-            "c4e71a5cae29ae03e7a9fb05cc54207d59d596f192c791a0a95f15a890b5b759",
+            "5c568e94158c334b7c58ada5feef17680371baa9e441b4c422e0548e7269bf5e",
         ),
     )
 

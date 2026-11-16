@@ -98,6 +98,24 @@ class VaultStore(
         }
     }
 
+    /**
+     * Atomically reads, transforms and writes the note/capture entries.
+     *
+     * A plain read-then-[write] pair from two coroutines can lose one of the
+     * updates (for example a background intruder capture racing a foreground
+     * delete). The transform runs under the same mutex as the index write, so
+     * concurrent writers can never overwrite each other's committed rows.
+     */
+    suspend fun updateEntries(
+        transform: (List<VaultEntry>) -> List<VaultEntry>,
+    ): VaultSnapshot = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            sweepTemporariesLocked()
+            val current = readLocked()
+            writeLocked(current.copy(entries = transform(current.entries)))
+        }
+    }
+
     // ------------------------------------------------------------------ legacy V4 attachments
 
     suspend fun saveAttachment(bytes: ByteArray, mimeType: String): String =
@@ -441,7 +459,9 @@ class VaultStore(
 
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         mutex.withLock {
-            directory.deleteRecursively()
+            if (directory.exists() && !directory.deleteRecursively()) {
+                throw VaultCorruptedException("The vault directory could not be deleted.")
+            }
             Unit
         }
     }

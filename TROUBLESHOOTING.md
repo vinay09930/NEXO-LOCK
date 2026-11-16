@@ -149,8 +149,8 @@ all app data.
 
 ### `INSTALL_FAILED_VERSION_DOWNGRADE`
 
-The installed version code is higher than 13. Install V1.2.0 or uninstall the
-newer build.
+The installed version code is higher than 14. Install V1.2.0 build 14 or
+uninstall the newer build.
 
 ### Play Protect warns about the APK
 

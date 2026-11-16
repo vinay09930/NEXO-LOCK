@@ -13,6 +13,7 @@ import com.vinay.nexolock.domain.PackageCatalog
 import com.vinay.nexolock.protection.PermissionManager
 import com.vinay.nexolock.protection.ProtectionRuntime
 import com.vinay.nexolock.protection.VolumeCaptureController
+import com.vinay.nexolock.security.SecurityAuthorization
 import com.vinay.nexolock.vault.IntruderCaptureManager
 import com.vinay.nexolock.vault.VaultManager
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +34,12 @@ class AppContainer(context: Context) {
     val protectedApps = ProtectedAppsRepository(prefs, keystore)
     val logs = SecurityLogRepository(appContext, keystore)
     val auth = AuthenticationService(prefs, credentials)
+    /**
+     * The one authorization checkpoint for NEXO LOCK's own interface. Every
+     * sensitive mutation goes through it; it is never persisted, so a new
+     * process always starts locked.
+     */
+    val security = SecurityAuthorization(prefs, logs, appScope).also { it.observeConfig() }
     val catalog = PackageCatalog(appContext)
     val volumeCapture = VolumeCaptureController()
     val runtime = ProtectionRuntime()

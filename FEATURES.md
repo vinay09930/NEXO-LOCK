@@ -2,7 +2,7 @@
 
 This guide describes the behaviour implemented in the V1.2.0 source. Runtime
 behaviour was smoke-tested on an API 37 emulator, not on a physical device; see
-[V1.2.0_TEST_REPORT.md](V1.2.0_TEST_REPORT.md) and
+[TEST_REPORT.md](TEST_REPORT.md) and
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
 ## 1. First-run setup
@@ -115,9 +115,9 @@ Rules:
   it.
 - Decoy, pattern, and PIN expiry are terminal and deny access.
 - Biometric has no NEXO timer. Success advances; failure or cancellation denies.
-- **Strict mode** requires the master PIN after a successful biometric or
-  volume-pattern factor. The value is persisted; the V1.2.0 Settings UI does not
-  expose a toggle.
+- **Strict mode** is a legacy persisted flag and is not read by the V1.2.0 lock
+  flow. The master PIN is always the final gate after any configured biometric or
+  volume-pattern factor.
 - **Recovery** always starts with the recovery PIN. If a recovery pattern is
   configured, it is an additional step.
 
@@ -147,12 +147,50 @@ capture after:
 
 Capture is throttled and serialised so a lock screen cannot start a camera storm.
 
-## 6. Personal Vault
+## 6. Self-Protection
+
+Self-Protection protects NEXO LOCK's own management interface while App
+Protection is on. It is not a separate switch: it is derived from App Protection,
+so it cannot drift out of sync, and turning App Protection off is the only way to
+disable it.
+
+When the owner changes a sensitive setting, NEXO LOCK replaces the management UI
+with the self-authentication gate. The gate reuses the same decoy, biometric,
+volume-pattern, master-PIN, and recovery flow as app unlocking. A successful gate
+issues a short-lived grant bound to that specific change; the change is applied
+only if the grant is still current.
+
+Sensitive operations:
+
+- turning App Protection off;
+- changing protected applications;
+- changing authentication methods;
+- changing recovery settings;
+- changing security settings;
+- modifying protection rules.
+
+Rules:
+
+- With App Protection off, the gate never appears and settings behave as before.
+- Turning App Protection off requires a fresh verification even inside an
+  already-unlocked session.
+- A denied, expired, superseded, or revoked gate cannot complete the pending
+  change.
+- Leaving the app for 30 seconds or more revokes the session; a denial revokes it
+  immediately.
+- The gate applies `FLAG_SECURE` while PIN or recovery entry is visible.
+- The gate is fail-closed: if the protection requirement cannot be read, the
+  change is refused rather than allowed.
+
+## 7. Personal Vault
 
 ### Credential
 
 - 4–8 digit PIN, separate from the main PIN, recovery PIN, and Intruder Vault PIN.
-- Reusing another credential is rejected with a specific message.
+- Vault PINs are not compared with other credential families. Reusing the same
+  digits does not link the vaults: each has its own verifier, failure budget,
+  Keystore key, associated data, and directory. Choose distinct secrets if you do
+  not want one observed PIN to open more than one surface.
 - Unlocking opens a three-minute in-memory session. Leaving the app for 10
   seconds or more, process death, or timeout re-locks it. A system file picker or
   delete confirmation is treated as an intentional trip and keeps the vault
@@ -201,7 +239,7 @@ only when the ciphertext exists and a whole-file digest is present.
 
 Duplicate imports are detected by size plus SHA-256 of the plaintext.
 
-## 7. Intruder Vault
+## 8. Intruder Vault
 
 - Separate 4–8 digit PIN and separate Keystore alias/AAD/directory.
 - Stores encrypted failed-unlock captures and incident metadata.
@@ -221,7 +259,7 @@ Duplicate imports are detected by size plus SHA-256 of the plaintext.
 - History can be cleared without deleting the vault credential.
 - Deleting the Intruder Vault also turns capture off.
 
-## 8. Security log
+## 9. Security log
 
 The log is encrypted at rest and grouped into:
 
@@ -235,7 +273,7 @@ The log is encrypted at rest and grouped into:
 Log entries carry a severity (info, success, warning, danger). The log is bounded
 and can be cleared from Settings; clearing writes a `LOG_CLEARED` event.
 
-## 9. Viewers
+## 10. Viewers
 
 Inside the vault, files can be previewed without exporting:
 
@@ -247,10 +285,12 @@ Inside the vault, files can be previewed without exporting:
 Viewer previews are cached only while the vault is unlocked and are deleted on
 lock. `FLAG_SECURE` is applied to vault and viewer routes.
 
-## 10. Settings
+## 11. Settings
 
 Settings is a category hub. The landing page lists nine categories and contains
-no detailed switches, timeout chips, permission actions, or diagnostics.
+no detailed switches, timeout chips, permission actions, or diagnostics. While
+App Protection is on, changing a sensitive setting opens the Self-Protection gate
+before the change is applied.
 
 ### Protection
 
@@ -311,7 +351,7 @@ preference live inside each vault workspace, not the Settings pages.
 
 - Version, core features, security model, and known limitations.
 
-## 11. Deliberate non-features
+## 12. Deliberate non-features
 
 - No cloud sync, account, or telemetry.
 - No internet permission.

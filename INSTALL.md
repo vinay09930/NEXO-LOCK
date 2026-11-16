@@ -5,14 +5,17 @@
 Download the latest release:
 
 ```text
-https://github.com/vinay09930/NEXO-LOCK/releases/latest/download/NEXO_LOCK_V1.2.0_RELEASE.apk
+https://github.com/vinay09930/NEXO-LOCK/releases/latest/download/NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk
 ```
 
-Exactly one build is delivered as a GitHub Release asset:
+Build 14 is delivered as a GitHub Release asset:
 
 | File | Size | Use |
 | --- | --- | --- |
-| `NEXO_LOCK_V1.2.0_RELEASE.apk` | 13,905,878 bytes | Normal installation; R8 optimization disabled |
+| `NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk` | 13,971,330 bytes | Normal installation; R8 optimization disabled |
+
+The original code-13 build remains available under the `v1.2.0` release tag as
+`NEXO_LOCK_V1.2.0_RELEASE.apk`. Build 14 is the current build.
 
 The APK is not stored in the source tree.
 
@@ -28,19 +31,19 @@ DN: C=US, O=Android, CN=Android Debug
 Windows:
 
 ```powershell
-Get-FileHash .\NEXO_LOCK_V1.2.0_RELEASE.apk -Algorithm SHA256
+Get-FileHash .\NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk -Algorithm SHA256
 ```
 
 Expected:
 
 ```text
-80BA3BEA9F3111E410C3B19B29C44370A2C1E0C1BC4294A607971DF5E6EB3D2D
+E31ACB83A8727F4E533E7532F97868A7D481FCB6BABE88C48150C6F2B40053EA
 ```
 
 Linux/macOS:
 
 ```bash
-sha256sum NEXO_LOCK_V1.2.0_RELEASE.apk
+sha256sum NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk
 ```
 
 ## Requirements
@@ -52,7 +55,7 @@ sha256sum NEXO_LOCK_V1.2.0_RELEASE.apk
 ## Install with adb
 
 ```powershell
-adb install -r .\NEXO_LOCK_V1.2.0_RELEASE.apk
+adb install -r .\NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk
 ```
 
 If the device already has a build signed with a different key:
@@ -75,7 +78,8 @@ vaults, because backup is disabled.
 ## Upgrade from an earlier NEXO LOCK build
 
 An in-place upgrade preserves data only when the signing certificate is the same.
-The V1.2.0 APK uses the same debug certificate as the previous local builds.
+The V1.2.0 build-14 APK uses the same debug certificate as the previous local
+builds, including the code-13 release.
 
 1. Do not uninstall the old app.
 2. Install the new APK over it (`adb install -r` or tap the APK).
@@ -119,7 +123,7 @@ recovered.
 | Problem | Meaning | Fix |
 | --- | --- | --- |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Different signing key | Uninstall the old build (data loss) |
-| `INSTALL_FAILED_VERSION_DOWNGRADE` | Lower version code | Install V1.2.0 (code 13) or uninstall |
+| `INSTALL_FAILED_VERSION_DOWNGRADE` | Lower version code | Install V1.2.0 build 14 (code 14) or uninstall |
 | `INSTALL_FAILED_INSUFFICIENT_STORAGE` | Not enough space | Free storage |
 | "App not installed" from file manager | Unknown-apps permission | Allow install from that file manager |
 | Play Protect warning | Sideloaded debug-key build | Confirm the source and continue only if you trust it |

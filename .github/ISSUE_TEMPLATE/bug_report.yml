@@ -1,0 +1,124 @@
+name: Bug report
+description: Report a reproducible defect in NEXO LOCK.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please read
+        [KNOWN_LIMITATIONS.md](https://github.com/vinay09930/NEXO-LOCK/blob/main/KNOWN_LIMITATIONS.md)
+        and [TROUBLESHOOTING.md](https://github.com/vinay09930/NEXO-LOCK/blob/main/TROUBLESHOOTING.md)
+        first.
+
+        **Do not report security vulnerabilities here.** Follow
+        [SECURITY.md](https://github.com/vinay09930/NEXO-LOCK/blob/main/SECURITY.md)
+        and use a private security advisory.
+
+        **Never paste real PINs, patterns, vault contents, screenshots of
+        private data, or signing secrets.** Use placeholders.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through a private advisory).
+          required: true
+        - label: I removed all real credentials and private data from this report.
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear description of the observed behaviour.
+      placeholder: "Example: Protection stops after the screen has been off for a while."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that reliably reproduce the issue.
+      placeholder: |
+        1. Install the release APK.
+        2. Complete setup with a test pattern and PIN.
+        3. Enable protection and lock the screen.
+        4. Open a protected app after 10 minutes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: NEXO LOCK version
+      description: Find it in Settings > About.
+      placeholder: "1.2.0 (versionCode 14)"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "Pixel 7, Android 15 (API 35)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Install source
+      options:
+        - GitHub Release APK
+        - Locally built debug APK
+        - Locally built release APK
+        - Other (explain below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: permissions
+    attributes:
+      label: Permission state
+      description: Which of these were granted when the bug occurred?
+      placeholder: "Overlay: yes, Accessibility: yes, Usage access: no, Notifications: yes, Camera: no"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: |
+        Attach only redacted logs or screenshots. `adb logcat -d` output is
+        useful, but remove package names and personal data you do not want public.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that may help, such as battery optimisation state or OEM autostart settings.
+    validations:
+      required: false

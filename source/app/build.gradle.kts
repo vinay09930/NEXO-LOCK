@@ -13,7 +13,7 @@ android {
         applicationId = "com.vinay.nexolock"
         minSdk = 26
         targetSdk = 37
-        versionCode = 13
+        versionCode = 14
         versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
