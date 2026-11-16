@@ -10,9 +10,9 @@ Runtime: headless API 37 (Android 17) x86_64 emulator
 | Check | Result |
 | --- | --- |
 | Kotlin compilation (`:app:compileDebugKotlin`) | **PASS** - BUILD SUCCESSFUL |
-| JVM unit tests | **PASS** - 171 tests, 21 suites, 0 failures, 0 errors, 0 skipped |
+| JVM unit tests | **PASS** - 175 tests, 21 suites, 0 failures, 0 errors, 0 skipped |
 | Release APK assembly (`:app:assembleRelease`) | **PASS** - BUILD SUCCESSFUL |
-| Android Lint (`:app:lintDebug`) | **PASS** - 0 errors, 39 warnings |
+| Android Lint (`:app:lintDebug`) | **PASS** - 0 errors, 40 warnings |
 | APK signature | **PASS** - certificate `fe1d89cc...978c` |
 | APK metadata | **PASS** - package `com.vinay.nexolock`, versionCode `14`, versionName `1.2.0` |
 | Runtime first-run setup (code-13 build) | **PASS** - pattern and master PIN configured on emulator |
@@ -50,7 +50,7 @@ cd D:\NEXO-LOCK\source
 | `OriginalFileDeletionPolicyTest` | 5 | 0 | 0 | 0 |
 | `PinHasherTest` | 7 | 0 | 0 | 0 |
 | `SelfProtectionGateTest` | 9 | 0 | 0 | 0 |
-| `SelfProtectionPolicyTest` | 7 | 0 | 0 | 0 |
+| `SelfProtectionPolicyTest` | 11 | 0 | 0 | 0 |
 | `VaultActivityTest` | 4 | 0 | 0 | 0 |
 | `VaultExportTest` | 6 | 0 | 0 | 0 |
 | `VaultFileFormatTest` | 13 | 0 | 0 | 0 |
@@ -61,7 +61,7 @@ cd D:\NEXO-LOCK\source
 | `VaultKindIndependenceTest` | 3 | 0 | 0 | 0 |
 | `VolumeKeyFilterTest` | 11 | 0 | 0 | 0 |
 | `VolumePatternTest` | 5 | 0 | 0 | 0 |
-| **Total** | **171** | **0** | **0** | **0** |
+| **Total** | **175** | **0** | **0** | **0** |
 
 ## What the tests cover
 
@@ -154,7 +154,7 @@ Release APK (the only delivered build):
 ```text
 File:    NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk (GitHub Release asset)
 Size:    13,971,330 bytes
-SHA-256: E31ACB83A8727F4E533E7532F97868A7D481FCB6BABE88C48150C6F2B40053EA
+SHA-256: 32AC6B136703891505EBB8E01F83ED8527EA615342AC76D26707C64E3D4E1B8B
 Cert:    fe1d89ccfac4fb031cc3e13d79d311f88421afe69b9bdc69fecff7aedda1978c
 ```
 
@@ -168,7 +168,7 @@ targetSdkVersion:'37'
 
 ## Honest conclusion
 
-The source compiles, the pure logic is covered by 171 passing JVM tests, Android
+The source compiles, the pure logic is covered by 175 passing JVM tests, Android
 Lint reports no errors, and the release APK is signed and hash-verified. The
 code-13 UI was smoke-tested on one API 37 emulator. Build 14 was installed over
 it with data preserved, and its activity started without an app crash, but the

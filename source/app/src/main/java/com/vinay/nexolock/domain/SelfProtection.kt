@@ -68,6 +68,26 @@ object SelfProtectionPolicy {
 }
 
 /**
+ * Whether a step-up request has lost the change it was created for.
+ *
+ * The request lives in the process-wide authorization checkpoint, while the
+ * queued change lives in the management ViewModel. A new ViewModel (for example
+ * after the task was removed from recents while the protection service kept the
+ * process alive) inherits the request but not the change. Such a request can
+ * never be replayed, so it must not keep the gate on screen after a successful
+ * verification.
+ *
+ * [requestInFlight] is true only while the current ViewModel is creating its own
+ * request, before the pending change has been bound. That request is fresh, not
+ * orphaned.
+ */
+fun stepUpIsOrphaned(
+    stepUp: SecurityOperation?,
+    hasPendingChange: Boolean,
+    requestInFlight: Boolean,
+): Boolean = stepUp != null && !hasPendingChange && !requestInFlight
+
+/**
  * Authorization state for Self-Protection.
  *
  * The gate is a pure, monotonic-time state machine with no Android dependency,

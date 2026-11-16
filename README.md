@@ -33,7 +33,7 @@ tree, so no repository clone is required. Build 14 is the only published build.
 | Minimum Android | 8.0 (API 26) |
 | Target / compile SDK | API 37 |
 | APK size | 13,971,330 bytes |
-| SHA-256 | `E31ACB83A8727F4E533E7532F97868A7D481FCB6BABE88C48150C6F2B40053EA` |
+| SHA-256 | `32AC6B136703891505EBB8E01F83ED8527EA615342AC76D26707C64E3D4E1B8B` |
 | Checksum file | [NEXO_LOCK_V1.2.0_BUILD14_SHA256.txt](https://github.com/vinay09930/NEXO-LOCK/releases/latest/download/NEXO_LOCK_V1.2.0_BUILD14_SHA256.txt) |
 | Signing certificate | `fe1d89ccfac4fb031cc3e13d79d311f88421afe69b9bdc69fecff7aedda1978c` |
 
@@ -216,9 +216,9 @@ production signing is documented in [RELEASING.md](RELEASING.md).
 Last verified on 2026-11-16:
 
 - `:app:compileDebugKotlin` — **BUILD SUCCESSFUL**.
-- 171 JVM unit tests across 21 suites — **0 failures, 0 errors, 0 skipped**.
+- 175 JVM unit tests across 21 suites — **0 failures, 0 errors, 0 skipped**.
 - `:app:assembleRelease` — **BUILD SUCCESSFUL**.
-- `:app:lintDebug` — **0 errors, 39 warnings** (dependency updates,
+- `:app:lintDebug` — **0 errors, 40 warnings** (dependency updates,
   deprecations, and resource-shape advisories; no blocking issues).
 - Release APK package, version, and signer certificate verified with
   `aapt2`/`apksigner`.

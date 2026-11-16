@@ -17,6 +17,12 @@ recreated.
 - Guarded changes are bound to the exact step-up grant that authorized them. A
   denied, expired, superseded, or revoked authentication cannot complete a
   pending change.
+- Fixed a stuck gate after reopening the app: a step-up request is process-wide
+  while its queued change is ViewModel-scoped. If the task was removed from
+  recents and the protection service kept the process alive, the request could
+  survive without its change and keep the gate on screen after a successful
+  verification. Orphaned requests are now cleared and can no longer block the
+  management UI.
 - Sensitive writes re-check the persisted protection requirement and the
   revocation epoch immediately before committing.
 - Removed the unused vault-PIN comparison path. Vault PINs are no longer compared

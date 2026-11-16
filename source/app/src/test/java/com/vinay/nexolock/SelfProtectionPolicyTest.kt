@@ -2,7 +2,9 @@ package com.vinay.nexolock
 
 import com.vinay.nexolock.data.NexoConfig
 import com.vinay.nexolock.domain.AuthFactor
+import com.vinay.nexolock.domain.SecurityOperation
 import com.vinay.nexolock.domain.SelfProtectionPolicy
+import com.vinay.nexolock.domain.stepUpIsOrphaned
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -102,5 +104,56 @@ class SelfProtectionPolicyTest {
             biometricAvailable = true,
         )
         assertFalse(AuthFactor.PIN in required)
+    }
+
+    // ---------------------------------------------------------------- step-up ownership
+
+    @Test
+    fun aStepUpWithoutItsQueuedChangeIsOrphaned() {
+        // The request is process-wide, the change is ViewModel-scoped. After the
+        // task is removed from recents the request can survive without the
+        // change, and it must not keep the gate up forever.
+        assertTrue(
+            stepUpIsOrphaned(
+                stepUp = SecurityOperation.CHANGE_SECURITY_SETTINGS,
+                hasPendingChange = false,
+                requestInFlight = false,
+            ),
+        )
+    }
+
+    @Test
+    fun aStepUpWithItsQueuedChangeIsNotOrphaned() {
+        assertFalse(
+            stepUpIsOrphaned(
+                stepUp = SecurityOperation.DISABLE_PROTECTION,
+                hasPendingChange = true,
+                requestInFlight = false,
+            ),
+        )
+    }
+
+    @Test
+    fun aFreshRequestIsNotOrphanedBeforeItsChangeIsBound() {
+        // The authorization state flow can deliver the new request while
+        // guardedChange is still binding the pending change to it.
+        assertFalse(
+            stepUpIsOrphaned(
+                stepUp = SecurityOperation.CHANGE_AUTHENTICATION,
+                hasPendingChange = false,
+                requestInFlight = true,
+            ),
+        )
+    }
+
+    @Test
+    fun noStepUpIsNeverOrphaned() {
+        assertFalse(
+            stepUpIsOrphaned(
+                stepUp = null,
+                hasPendingChange = false,
+                requestInFlight = false,
+            ),
+        )
     }
 }

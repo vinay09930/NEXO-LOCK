@@ -27,6 +27,7 @@ import com.vinay.nexolock.domain.SecurityOperation
 import com.vinay.nexolock.domain.SelfProtectionPolicy
 import com.vinay.nexolock.domain.ThemeMode
 import com.vinay.nexolock.domain.UnlockMethod
+import com.vinay.nexolock.domain.stepUpIsOrphaned
 import com.vinay.nexolock.domain.VolumePattern
 import com.vinay.nexolock.domain.VolumePress
 import com.vinay.nexolock.protection.PermissionChecks
@@ -288,11 +289,24 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
 
     private var pendingChange: PendingChange? = null
 
+    /**
+     * True only between asking for a step-up and binding the change to it. The
+     * authorization state flow may deliver the new request in that window, and
+     * the request must not be mistaken for an orphaned one.
+     */
+    private var stepUpRequestInFlight = false
+
     /** Delete confirmations waiting behind the currently active system dialog. */
     private val deleteConsentQueue = ArrayDeque<DeleteConsentRequest>()
     private var activeDeleteConsent: DeleteConsentRequest? = null
 
     init {
+        // A step-up is owned by the ViewModel that queued its change. A
+        // ViewModel created now cannot own an earlier request, so an inherited
+        // request is orphaned. Leaving it in the process-wide checkpoint made
+        // the gate reappear after reopening the app and stay up even after a
+        // successful verification.
+        container.security.clearStepUp()
         viewModelScope.launch {
             combine(
                 container.prefs.config,
@@ -324,23 +338,35 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
         }
         viewModelScope.launch {
             container.security.state.collect { security ->
+                var pending = pendingChange
+                // A denial, expiry, cancellation or a newer step-up invalidates
+                // the queued change immediately. It must never survive until an
+                // unrelated unlock later in the same process.
+                if (pending != null && pending.stepUpId != security.stepUpId) {
+                    pendingChange = null
+                    pending = null
+                }
+                // An inherited request has no queued change behind it and can
+                // never complete. Clearing it is what lets the gate dismiss
+                // after the owner verifies again.
+                val orphaned = stepUpIsOrphaned(
+                    stepUp = security.stepUp,
+                    hasPendingChange = pending != null,
+                    requestInFlight = stepUpRequestInFlight,
+                )
+                if (orphaned) {
+                    container.security.clearStepUpIfCurrent(security.stepUpId)
+                }
                 _state.update {
                     it.copy(
                         security = it.security.copy(
                             authorized = security.authorized,
                             remainingMs = security.remainingMs,
-                            stepUp = security.stepUp,
+                            stepUp = if (orphaned) null else security.stepUp,
                         ),
                     )
                 }
-                val pending = pendingChange ?: return@collect
-                // A denial, expiry, cancellation or a newer step-up invalidates
-                // the queued change immediately. It must never survive until an
-                // unrelated unlock later in the same process.
-                if (pending.stepUpId != security.stepUpId) {
-                    pendingChange = null
-                    return@collect
-                }
+                if (pending == null) return@collect
                 // Only a grant newer than the one present when the change was
                 // refused may run it. A stale grant that was already authorized
                 // must not replay the change before the owner verifies again.
@@ -745,12 +771,17 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
                             "Refused without authorization: ${operation.label}",
                         )
                     }
-                    val request = container.security.requestStepUp(operation)
-                    pendingChange = PendingChange(
-                        stepUpId = request.id,
-                        grantIdAtRequest = request.grantId,
-                        run = { guardedChange(operation, attempt + 1, onResult, change) },
-                    )
+                    stepUpRequestInFlight = true
+                    try {
+                        val request = container.security.requestStepUp(operation)
+                        pendingChange = PendingChange(
+                            stepUpId = request.id,
+                            grantIdAtRequest = request.grantId,
+                            run = { guardedChange(operation, attempt + 1, onResult, change) },
+                        )
+                    } finally {
+                        stepUpRequestInFlight = false
+                    }
                     onResult("Verify it's you to ${operation.label}.")
                 }
             }
@@ -2569,6 +2600,14 @@ class NexoViewModel(private val container: AppContainer) : ViewModel() {
             container.logs.log(LogType.LOG_CLEARED, "Security log cleared by the owner")
             refreshLogs()
         }
+    }
+
+    override fun onCleared() {
+        // The queued change dies with this ViewModel. Its step-up must not
+        // outlive it in the process-wide checkpoint, or the next ViewModel
+        // would show a gate that can never complete its work.
+        pendingChange = null
+        container.security.clearStepUp()
     }
 
     companion object {

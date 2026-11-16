@@ -10,12 +10,12 @@ the delivery, not an afterthought.
 | Runtime UI testing | **PARTIAL** | Code-13 Home, Settings hub, all nine category pages, About, back navigation, the floating pill, one warning action, and one vault shortcut were exercised on an API 37 emulator; build 14 was installed over it and launched |
 | First-run setup on device | **PASS** | Volume pattern and six-digit master PIN were configured on the emulator |
 | Full authentication on device | **NOT TESTED** | Unlock, biometric, recovery, lockout, and decoy timing were not run end to end |
-| Self-Protection gate on device | **PARTIAL** | Gate policy and authorization rules are covered by JVM tests; the full enable-protection → guarded-change → gate flow was not driven end to end |
+| Self-Protection gate on device | **PARTIAL** | Gate policy, authorization rules, and orphaned step-up cleanup are covered by JVM tests; the full enable-protection → guarded-change → gate flow was not driven end to end |
 | Vault import/export on device | **NOT TESTED** | SAF pickers, streaming I/O, and large files were not run |
 | Intruder capture on device | **NOT TESTED** | Camera2 capture and permission flows were not run |
 | Upgrade migration | **PARTIAL** | The emulator upgrade over the previous same-key release was exercised, including code 13 → code 14 (install succeeded, data preserved); the build-14 UI could not be visually confirmed because the host-starved emulator's system processes raised ANR dialogs, and a physical-device upgrade from an earlier build was not tested |
 | Accessibility/overlay protection | **NOT TESTED** | Foreground detection and lock coverage against a real target app were not observed |
-| Android Lint | **PASS** | `:app:lintDebug` reported 0 errors and 39 non-blocking warnings |
+| Android Lint | **PASS** | `:app:lintDebug` reported 0 errors and 40 non-blocking warnings |
 | Instrumented tests | **NOT RUN** | No `connectedAndroidTest` execution |
 | Multiple Android versions/vendors | **NOT TESTED** | One API 37 x86_64 emulator was used; no real device or OEM skin |
 | Documentation screenshots | **INCLUDED** | See `screenshots/v1.2.0/` |

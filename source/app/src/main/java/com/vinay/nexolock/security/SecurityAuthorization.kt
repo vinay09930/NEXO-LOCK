@@ -153,6 +153,20 @@ class SecurityAuthorization(
         _state.update { it.copy(stepUp = null, stepUpId = 0L) }
     }
 
+    /**
+     * Clears only the step-up that still has [requestId]. A late observer must
+     * never clear a newer request that replaced the one it saw.
+     */
+    fun clearStepUpIfCurrent(requestId: Long) {
+        _state.update { current ->
+            if (current.stepUpId == requestId) {
+                current.copy(stepUp = null, stepUpId = 0L)
+            } else {
+                current
+            }
+        }
+    }
+
     fun isAuthorized(): Boolean = gate.isAuthorized(nowMs())
 
     /** How long the current grant has been alive; 0 when there is none. */
