@@ -28,10 +28,10 @@ recreated.
 - Removed unreachable service actions and unused resources.
 - Added Self-Protection gate/policy and lockout-policy unit tests.
 - Bumped `versionCode` to `14`; `versionName` remains `1.2.0`.
-- Delivered as the separate GitHub Release `v1.2.0-build14`. The original
-  `v1.2.0` code-13 release is unchanged.
+- Delivered as GitHub Release `v1.2.0-build14`. The earlier code-13 build has
+  been withdrawn.
 
-## 1.2.0 - versionCode 13
+## 1.2.0 - versionCode 13 (withdrawn)
 
 **Release consolidation.**
 

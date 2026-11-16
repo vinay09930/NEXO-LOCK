@@ -25,7 +25,7 @@ D:\NEXO-LOCK\
 ├── SECURITY.md
 ├── TEST_REPORT.md
 ├── TROUBLESHOOTING.md
-├── V1.2.0_*.md                     Release-specific reports
+├── V1.2.0_BUILD14_RELEASE_REPORT.md  Build-14 release report
 ├── reference\                      Logo source asset only
 │   └── logo_source.jpg
 ├── screenshots\v1.2.0\             Runtime screenshots

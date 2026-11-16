@@ -18,7 +18,7 @@ the delivery, not an afterthought.
 | Android Lint | **PASS** | `:app:lintDebug` reported 0 errors and 39 non-blocking warnings |
 | Instrumented tests | **NOT RUN** | No `connectedAndroidTest` execution |
 | Multiple Android versions/vendors | **NOT TESTED** | One API 37 x86_64 emulator was used; no real device or OEM skin |
-| Documentation screenshots | **INCLUDED** | See `screenshots/v1.2.0/` and [V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md) |
+| Documentation screenshots | **INCLUDED** | See `screenshots/v1.2.0/` |
 
 ## Release engineering limitations
 
@@ -126,6 +126,5 @@ performed.
 
 ## What was verified
 
-See [TEST_REPORT.md](TEST_REPORT.md) and
-[V1.2.0_TEST_REPORT.md](V1.2.0_TEST_REPORT.md) for the exact commands and results.
-Use [V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md) for the runtime evidence.
+See [TEST_REPORT.md](TEST_REPORT.md) for the exact commands and results. Runtime
+screenshots are in `screenshots/v1.2.0/`.

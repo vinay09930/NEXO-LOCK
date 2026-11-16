@@ -24,8 +24,7 @@ account system, and sends no telemetry.
 [**Download NEXO LOCK v1.2.0 build 14 APK**](https://github.com/vinay09930/NEXO-LOCK/releases/latest/download/NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk)
 
 The APK and checksum are GitHub Release assets. They are not stored in the source
-tree, so no repository clone is required. The original code-13 build remains
-available under the `v1.2.0` tag.
+tree, so no repository clone is required. Build 14 is the only published build.
 
 | Item | Value |
 | --- | --- |
@@ -68,7 +67,7 @@ Full feature guide: [FEATURES.md](FEATURES.md).
 
 ## Screenshots
 
-Captured from the V1.2.0 release build on an API 37 (Android 17) emulator.
+Captured from the V1.2.0 UI on an API 37 (Android 17) emulator.
 
 | Home | Home with recent activity | Settings hub |
 | --- | --- | --- |
@@ -78,8 +77,7 @@ Captured from the V1.2.0 release build on an API 37 (Android 17) emulator.
 | --- | --- | --- |
 | ![Protection](screenshots/v1.2.0/03_settings_protection.png) | ![Authentication](screenshots/v1.2.0/04_settings_authentication.png) | ![About](screenshots/v1.2.0/11_settings_about.png) |
 
-See the full set and runtime notes in
-[V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md).
+All screenshots are in [`screenshots/v1.2.0/`](screenshots/v1.2.0/).
 
 ## Compatibility
 
@@ -290,12 +288,7 @@ local `builds/` folder is ignored by Git.
 | [ROADMAP.md](ROADMAP.md) | Planned work and priorities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, and contribution workflow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community expectations |
-| [V1.2.0_IMPLEMENTATION_REPORT.md](V1.2.0_IMPLEMENTATION_REPORT.md) | What changed in this release |
-| [V1.2.0_MODIFIED_FILES.md](V1.2.0_MODIFIED_FILES.md) | Files that carry the V1.2.0 UI |
-| [V1.2.0_TEST_REPORT.md](V1.2.0_TEST_REPORT.md) | Release-specific build and runtime evidence |
-| [V1.2.0_RELEASE_REPORT.md](V1.2.0_RELEASE_REPORT.md) | Original code-13 release report |
 | [V1.2.0_BUILD14_RELEASE_REPORT.md](V1.2.0_BUILD14_RELEASE_REPORT.md) | Build-14 artifact, signing, and verification report |
-| [V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md) | Screenshot index and runtime notes |
 
 ## Roadmap
 

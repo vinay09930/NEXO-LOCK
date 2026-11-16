@@ -14,8 +14,7 @@ Build 14 is delivered as a GitHub Release asset:
 | --- | --- | --- |
 | `NEXO_LOCK_V1.2.0_BUILD14_RELEASE.apk` | 13,971,330 bytes | Normal installation; R8 optimization disabled |
 
-The original code-13 build remains available under the `v1.2.0` release tag as
-`NEXO_LOCK_V1.2.0_RELEASE.apk`. Build 14 is the current build.
+Build 14 is the only published build; earlier APKs have been withdrawn.
 
 The APK is not stored in the source tree.
 
@@ -78,8 +77,8 @@ vaults, because backup is disabled.
 ## Upgrade from an earlier NEXO LOCK build
 
 An in-place upgrade preserves data only when the signing certificate is the same.
-The V1.2.0 build-14 APK uses the same debug certificate as the previous local
-builds, including the code-13 release.
+The V1.2.0 build-14 APK uses the same debug certificate as earlier builds, so an
+in-place upgrade from one of them preserves data.
 
 1. Do not uninstall the old app.
 2. Install the new APK over it (`adb install -r` or tap the APK).

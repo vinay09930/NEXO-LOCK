@@ -145,9 +145,7 @@ Verified visually:
 - Permission labels match the emulator's real Android state.
 - The decoy source files still match their pinned hashes.
 
-Screenshots and detailed observations are in
-[V1.2.0_TEST_REPORT.md](V1.2.0_TEST_REPORT.md) and
-[V1.2.0_SCREENSHOTS.md](V1.2.0_SCREENSHOTS.md).
+Screenshots and detailed observations are in `screenshots/v1.2.0/`.
 
 ## APK verification
 
