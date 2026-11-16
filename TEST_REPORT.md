@@ -71,6 +71,8 @@ cd D:\NEXO-LOCK\source
 - Self-Protection policy derivation and the pure gate decisions for every
   sensitive operation, including protection-off, no-grant, fresh-auth, expiry,
   and revocation states.
+- Step-up ownership: an inherited request without its queued change is classified
+  as orphaned, while a bound pending change and an in-flight request are not.
 - Dashboard status derivation.
 - Decoy source hash freeze.
 - Intruder incident parsing.
@@ -125,7 +127,10 @@ UI pass.
 
 The Self-Protection gate's state machine and authorization rules are covered by
 JVM tests, but the full on-device gate flow (enable protection → open a guarded
-setting → complete or deny the gate) was not driven end to end in this run.
+setting → complete or deny the gate) was not driven end to end in this run. The
+stuck-gate fix is covered at the policy level: a step-up request with no queued
+change behind it is detected as orphaned and cleared, so it cannot keep the gate
+visible after a successful verification.
 
 The code-13 install succeeded, the app launched, and setup state plus journal
 entries were preserved. The second Home screenshot shows the optional
