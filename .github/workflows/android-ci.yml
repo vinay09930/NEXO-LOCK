@@ -38,7 +38,8 @@ jobs:
           packages: platform-tools
 
       - name: Install required SDK components
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+        # API 37 is published as the versioned "android-37.0" platform package.
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
